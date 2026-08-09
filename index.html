@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>📒 收支账本</title>
     <style>
-        /* ========== 全局样式 ========== */
         * {
             margin: 0;
             padding: 0;
@@ -190,12 +189,38 @@
         .btn-submit:active { transform: scale(0.97); }
         .btn-submit:disabled { opacity: 0.6; transform: none; }
 
-        /* ========== 统计看板（按成员展示明细） ========== */
+        /* ========== 统计看板 ========== */
         .stats-section {
             margin-top: 28px;
             border-top: 1.5px dashed #e8ddd2;
             padding-top: 22px;
         }
+
+        /* 盈利卡片 */
+        .profit-card {
+            background: #e6f0fa;
+            border-radius: 18px;
+            border: 2px solid #6f8c9b;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .profit-card .profit-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c4a5e;
+        }
+        .profit-card .profit-amount {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .profit-card .profit-amount.positive { color: #2e7d32; }
+        .profit-card .profit-amount.negative { color: #c62828; }
+        .profit-card .profit-amount.zero { color: #6f8c9b; }
 
         .member-stat-card {
             background: #fcfaf8;
@@ -205,7 +230,6 @@
             margin-bottom: 14px;
         }
         .member-stat-card:last-child { margin-bottom: 0; }
-
         .member-stat-header {
             display: flex;
             align-items: center;
@@ -224,9 +248,11 @@
             gap: 16px;
             font-size: 15px;
             font-weight: 500;
+            flex-wrap: wrap;
         }
         .member-stat-header .totals .cost { color: #b88a5e; }
         .member-stat-header .totals .income { color: #6f8c9b; }
+        .member-stat-header .totals .goods { color: #d4a373; }
         .member-stat-header .totals .count { color: #a5856a; font-weight: 400; }
 
         .member-detail-list {
@@ -274,9 +300,12 @@
             gap: 10px;
             white-space: nowrap;
             font-weight: 500;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
         .detail-item .right .cost { color: #b88a5e; }
         .detail-item .right .income { color: #6f8c9b; }
+        .detail-item .right .goods { color: #d4a373; }
         .detail-empty {
             text-align: center;
             color: #b8a392;
@@ -294,13 +323,16 @@
             font-size: 15px;
             font-weight: 500;
             color: #5a3e2b;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .grand-total .item { text-align: center; }
         .grand-total .item .num { font-weight: 700; font-size: 18px; }
         .grand-total .item .num.cost { color: #b88a5e; }
         .grand-total .item .num.income { color: #6f8c9b; }
+        .grand-total .item .num.goods { color: #d4a373; }
 
-        /* ========== 最近记录（全部） ========== */
+        /* ========== 最近记录 ========== */
         .history-section {
             margin-top: 24px;
             border-top: 1.5px dashed #e8ddd2;
@@ -360,7 +392,10 @@
             flex-wrap: wrap;
         }
         .record-item .left .top .pname { font-weight: 600; color: #5a3e2b; }
-        .record-item .left .top .pdate { font-size: 12px; color: #a5856a; }
+        .record-item .left .top .pdate {
+            font-size: 12px;
+            color: #a5856a;
+        }
         .record-item .left .note {
             font-size: 13px;
             color: #7a624c;
@@ -370,9 +405,14 @@
             text-align: right;
             flex-shrink: 0;
             margin-left: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+            justify-content: flex-end;
         }
         .record-item .right .cost { color: #b88a5e; font-weight: 600; }
-        .record-item .right .income { color: #6f8c9b; font-weight: 600; margin-left: 6px; }
+        .record-item .right .income { color: #6f8c9b; font-weight: 600; }
+        .record-item .right .goods { color: #d4a373; font-weight: 600; }
         .record-item .right .empty { color: #ccc; }
         .record-item .del-btn {
             background: none;
@@ -393,7 +433,6 @@
         }
         .empty-state .icon { font-size: 42px; display: block; margin-bottom: 8px; }
 
-        /* Toast */
         .toast {
             position: fixed;
             bottom: 30px;
@@ -444,7 +483,7 @@
         </div>
     </div>
 
-    <!-- 人员选择（只有爸和妈） -->
+    <!-- 人员选择 -->
     <div class="section-label">👤 谁在记账？ <span class="badge">点击切换</span></div>
     <div class="person-selector" id="personSelector">
         <button class="person-btn active" data-person="爸"><span class="emoji">👨</span> 爸</button>
@@ -464,57 +503,56 @@
                 <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
             </div>
         </div>
+        <div class="input-row">
+            <div class="field" style="flex: 1;">
+                <label>📦 货款 (¥)</label>
+                <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
+            </div>
+            <div class="field" style="flex: 1; visibility: hidden;"></div>
+        </div>
         <div class="field">
             <label>📝 备注</label>
-            <textarea id="noteInput" placeholder="比如：买菜、工资、红包…" rows="1"></textarea>
+            <textarea id="noteInput" placeholder="比如：买菜、工资、货款…" rows="1"></textarea>
         </div>
     </div>
     <button class="btn-submit" id="submitBtn">✅ 记 录</button>
 
-    <!-- ====== 统计看板（按成员展示明细） ====== -->
+    <!-- 统计看板 -->
     <div class="stats-section">
         <div class="section-label">📊 所选日期的明细</div>
-        <div id="statsContainer">
-            <!-- 由 JS 动态渲染 -->
-        </div>
-        <div class="grand-total" id="grandTotal">
-            <!-- 由 JS 动态渲染 -->
-        </div>
+        <div id="statsContainer"></div>
+        <div class="grand-total" id="grandTotal"></div>
     </div>
 
-    <!-- ====== 最近记录（全部） ====== -->
+    <!-- 最近记录 -->
     <div class="history-section">
         <div class="history-header">
             <div class="section-label">📋 全部记录</div>
             <button class="clear-btn" id="clearAllBtn">🗑 清空全部</button>
         </div>
-        <div class="record-list" id="recordList">
-            <!-- 由 JS 动态渲染 -->
-        </div>
+        <div class="record-list" id="recordList"></div>
     </div>
 </div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- ============================================================ -->
-<!-- Firebase 及脚本 -->
-<!-- ============================================================ -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
     // ================================================================
-    //  1.  🔥 Firebase 配置（请替换为你的真实配置）
+    //  1.  Firebase 配置（请替换为你的真实配置）
     // ================================================================
-   const firebaseConfig = {
-        apiKey: "AIzaSyA42r5qGKt6stH-ggd7sC0m9pCv9OyMIOI",
-        authDomain: "family-account-book-22cc3.firebaseapp.com",
-        databaseURL:"https://family-account-book-22cc3-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    const firebaseConfig = {
+        apiKey: "AIzaSyA42r5qGK6t5h-Ggq7sC0m9pCv90yMIOI",
+        authDomain: "family-account-book-22cc3.firebaseapp.co",
+        databaseURL: "https://family-account-book-22cc3-default-rtdb.asia-southeast1.firebasedatabase.ap/",
         projectId: "family-account-book-22cc3",
         storageBucket: "family-account-book-22cc3.firebasestorage.app",
         messagingSenderId: "883258053961",
-        appId: "1:883258053961:web:44d29f663559806a22f698"
+        appId: "1:883258053961:web:44d29f6635598b6a22f698"
     };
 
     let db = null;
@@ -535,16 +573,17 @@
     const state = {
         currentPerson: '爸',
         records: [],
-        selectedDate: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+        selectedDate: new Date().toISOString().slice(0, 10),
     };
 
-    // DOM 引用
+    // DOM
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
     const personBtns = $$('.person-btn');
-    const expenseInput = $('#expenseAmt');     // 支出
+    const expenseInput = $('#expenseAmt');
     const incomeAmtInput = $('#incomeAmt');
+    const goodsInput = $('#goodsAmt');
     const noteInput = $('#noteInput');
     const submitBtn = $('#submitBtn');
     const statsContainer = $('#statsContainer');
@@ -560,10 +599,6 @@
         const d = new Date(dateStr + 'T00:00:00');
         return `${d.getMonth()+1}月${d.getDate()}日`;
     }
-    function formatTime(ts) {
-        const d = new Date(ts);
-        return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    }
     function toFixed(v) { return Number(v).toFixed(2); }
     function showToast(msg, duration = 2000) {
         const el = $('#toast');
@@ -575,7 +610,7 @@
     function getTodayStr() { return new Date().toISOString().slice(0, 10); }
 
     // ================================================================
-    //  4.  人员选择（只有爸和妈）
+    //  4.  人员选择
     // ================================================================
     personBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -591,16 +626,21 @@
     submitBtn.addEventListener('click', function() {
         if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
         const person = state.currentPerson;
-        const expense = parseFloat(expenseInput.value) || 0;   // 支出
+        const expense = parseFloat(expenseInput.value) || 0;
         const income = parseFloat(incomeAmtInput.value) || 0;
+        const goods = parseFloat(goodsInput.value) || 0;
         const note = noteInput.value.trim() || '';
-        if (expense === 0 && income === 0) { showToast('⚠️ 支出或收入至少填一项'); return; }
+        if (expense === 0 && income === 0 && goods === 0) {
+            showToast('⚠️ 支出、收入或货款至少填一项');
+            return;
+        }
 
         const record = {
             person: person,
-            date: getTodayStr(),
-            expense: expense,      // 字段名改为 expense
+            date: state.selectedDate,
+            expense: expense,
             income: income,
+            goods: goods,
             note: note,
             createdAt: Date.now(),
         };
@@ -613,6 +653,7 @@
                 showToast('✅ 记录成功！');
                 expenseInput.value = '';
                 incomeAmtInput.value = '';
+                goodsInput.value = '';
                 noteInput.value = '';
                 expenseInput.focus();
             })
@@ -627,11 +668,10 @@
     // ================================================================
     //  6.  日期选择器
     // ================================================================
-    // 初始化日期为今天
     selectedDateInput.value = getTodayStr();
     selectedDateInput.addEventListener('change', function() {
         state.selectedDate = this.value;
-        renderAll(); // 重新渲染统计和记录（根据日期过滤）
+        renderAll();
     });
 
     // ================================================================
@@ -661,20 +701,35 @@
         renderRecords();
     }
 
-    // ---------- 8a. 统计看板（按成员展示明细，根据所选日期过滤） ----------
+    // ---------- 统计看板（盈利 = 收入 - 货款，底部只显示三项总计） ----------
     function renderStats() {
         const records = state.records;
         const selectedDate = state.selectedDate;
-        // 过滤出所选日期的记录
         const dayRecords = records.filter(r => r.date === selectedDate);
         const persons = ['爸', '妈'];
         const emojiMap = { '爸': '👨', '妈': '👩' };
 
-        let html = '';
+        // 计算当日总收入和总货款（支出独立显示，不影响盈利）
+        const totalIncomeAll = dayRecords.reduce((sum, r) => sum + (r.income || 0), 0);
+        const totalGoodsAll = dayRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
+        const profit = totalIncomeAll - totalGoodsAll;   // 盈利 = 收入 - 货款
+
+        // 盈利卡片
+        let profitHtml = `<div class="profit-card">`;
+        profitHtml += `<span class="profit-label">📈 所选日期 (${formatDate(selectedDate)}) 盈利</span>`;
+        let profitClass = 'zero';
+        if (profit > 0) profitClass = 'positive';
+        else if (profit < 0) profitClass = 'negative';
+        profitHtml += `<span class="profit-amount ${profitClass}">¥${toFixed(profit)}</span>`;
+        profitHtml += `</div>`;
+
+        // 成员卡片
+        let html = profitHtml;
         persons.forEach(p => {
             const pRecords = dayRecords.filter(r => r.person === p);
             const totalExpense = pRecords.reduce((sum, r) => sum + (r.expense || 0), 0);
             const totalIncome = pRecords.reduce((sum, r) => sum + (r.income || 0), 0);
+            const totalGoods = pRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
 
             html += `<div class="member-stat-card">`;
             html += `<div class="member-stat-header">
@@ -682,6 +737,7 @@
                         <span class="totals">
                             <span class="cost">-¥${toFixed(totalExpense)}</span>
                             <span class="income">+¥${toFixed(totalIncome)}</span>
+                            <span class="goods">📦¥${toFixed(totalGoods)}</span>
                             <span class="count">${pRecords.length}笔</span>
                         </span>
                     </div>`;
@@ -690,18 +746,18 @@
                 html += `<div class="member-detail-list"><div class="detail-empty">当天无记录</div></div>`;
             } else {
                 html += `<div class="member-detail-list">`;
-                // 按时间从新到旧
                 const sorted = [...pRecords].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 sorted.forEach(r => {
                     const expense = r.expense || 0;
                     const income = r.income || 0;
+                    const goods = r.goods || 0;
                     const dateStr = r.date || '未知';
                     const note = r.note || '';
-                    const amountHtml = expense > 0 && income > 0 ? 
-                        `<span class="cost">-¥${toFixed(expense)}</span><span class="income">+¥${toFixed(income)}</span>` :
-                        expense > 0 ? `<span class="cost">-¥${toFixed(expense)}</span>` :
-                        income > 0 ? `<span class="income">+¥${toFixed(income)}</span>` :
-                        `<span>—</span>`;
+                    let amountHtml = '';
+                    if (expense > 0) amountHtml += `<span class="cost">-¥${toFixed(expense)}</span>`;
+                    if (income > 0) amountHtml += `<span class="income">+¥${toFixed(income)}</span>`;
+                    if (goods > 0) amountHtml += `<span class="goods">📦¥${toFixed(goods)}</span>`;
+                    if (!amountHtml) amountHtml = `<span>—</span>`;
                     html += `<div class="detail-item">
                                 <div class="left">
                                     <span class="date">${formatDate(dateStr)}</span>
@@ -716,17 +772,18 @@
         });
         statsContainer.innerHTML = html;
 
-        // 总计合计（所选日期）
+        // 总计合计（只显示三项，不显示笔数）
         const allExpense = dayRecords.reduce((sum, r) => sum + (r.expense || 0), 0);
         const allIncome = dayRecords.reduce((sum, r) => sum + (r.income || 0), 0);
+        const allGoods = dayRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
         grandTotal.innerHTML = `
             <div class="item">💸 总支出 <span class="num cost">¥${toFixed(allExpense)}</span></div>
             <div class="item">💰 总收入 <span class="num income">¥${toFixed(allIncome)}</span></div>
-            <div class="item">📋 ${dayRecords.length} 笔</div>
+            <div class="item">📦 总货款 <span class="num goods">¥${toFixed(allGoods)}</span></div>
         `;
     }
 
-    // ---------- 8b. 最近记录（全部，不受日期筛选，但保留全部记录） ----------
+    // ---------- 全部记录 ----------
     function renderRecords() {
         const records = state.records;
         if (!records || records.length === 0) {
@@ -738,26 +795,21 @@
         let html = '';
         showRecords.forEach((r, index) => {
             const dateStr = r.date || '未知日期';
-            const timeStr = r.createdAt ? formatTime(r.createdAt) : '';
             const note = r.note || '';
             const expense = r.expense || 0;
             const income = r.income || 0;
+            const goods = r.goods || 0;
             let rightHtml = '';
-            if (expense > 0 && income > 0) {
-                rightHtml = `<span class="cost">-¥${toFixed(expense)}</span> <span class="income">+¥${toFixed(income)}</span>`;
-            } else if (expense > 0) {
-                rightHtml = `<span class="cost">-¥${toFixed(expense)}</span>`;
-            } else if (income > 0) {
-                rightHtml = `<span class="income">+¥${toFixed(income)}</span>`;
-            } else {
-                rightHtml = `<span class="empty">—</span>`;
-            }
+            if (expense > 0) rightHtml += `<span class="cost">-¥${toFixed(expense)}</span>`;
+            if (income > 0) rightHtml += `<span class="income">+¥${toFixed(income)}</span>`;
+            if (goods > 0) rightHtml += `<span class="goods">📦¥${toFixed(goods)}</span>`;
+            if (!rightHtml) rightHtml = `<span class="empty">—</span>`;
             html += `
                 <div class="record-item" data-id="${r.id}" style="animation-delay:${index * 20}ms">
                     <div class="left">
                         <div class="top">
                             <span class="pname">${emojiMap[r.person] || '👤'} ${r.person}</span>
-                            <span class="pdate">${formatDate(dateStr)} ${timeStr}</span>
+                            <span class="pdate">${formatDate(dateStr)}</span>
                         </div>
                         ${note ? `<div class="note">📌 ${note}</div>` : ''}
                     </div>
@@ -769,7 +821,6 @@
             `;
         });
         recordList.innerHTML = html;
-        // 删除事件委托
         recordList.querySelectorAll('.del-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -797,7 +848,6 @@
         }
     });
 
-    // ---------- 空状态 ----------
     function renderEmptyState(msg) {
         statsContainer.innerHTML = `<div class="member-stat-card" style="text-align:center;color:#b8a392;padding:20px;">${msg}</div>`;
         grandTotal.innerHTML = '';
@@ -809,11 +859,10 @@
     // ================================================================
     loadData();
 
-    // 输入框快捷跳转
     expenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); incomeAmtInput.focus(); } });
-    incomeAmtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); noteInput.focus(); } });
+    incomeAmtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goodsInput.focus(); } });
+    goodsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); noteInput.focus(); } });
 
-    // 点击统计卡片切换人员
     statsContainer.addEventListener('click', (e) => {
         const card = e.target.closest('.member-stat-card');
         if (!card) return;
@@ -829,7 +878,7 @@
         }
     });
 
-    console.log('📒 收支账本（只含爸和妈）已启动！');
+    console.log('📒 收支账本（盈利=收入-货款，底部只显示三项总计）已启动！');
 </script>
 </body>
 </html>
