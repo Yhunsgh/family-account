@@ -3,86 +3,75 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>📒 收支账本</title>
-    <!-- 外部样式 -->
+    <title>收支账本</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <div class="app" id="app">
-    <!-- 头部 -->
     <div class="header">
-        <h1><span>📒</span>收支账本</h1>
+        <h1>收支账本</h1>
         <div class="date-picker">
-            📅
+            日期：
             <input type="date" id="selectedDate" />
         </div>
     </div>
 
-    <!-- 人员选择 -->
-    <div class="section-label">👤 谁在记账？ <span class="badge">点击切换</span></div>
+    <div class="section-label">谁在记账？ <span class="badge">点击切换</span></div>
     <div class="person-selector" id="personSelector">
-        <button class="person-btn active" data-person="爸"><span class="emoji">👨</span> 爸</button>
-        <button class="person-btn" data-person="妈"><span class="emoji">👩</span> 妈</button>
+        <button class="person-btn active" data-person="爸">刘力伟</button>
+        <button class="person-btn" data-person="妈">郑少容</button>
     </div>
 
-    <!-- 输入区域 -->
-    <div class="section-label">✏️ 记录一笔</div>
+    <div class="section-label">记录一笔</div>
     <div class="input-group">
         <div class="input-row">
             <div class="field">
-                <label>💸 支出 (¥)</label>
+                <label>支出 (¥)</label>
                 <div class="currency"><input type="number" id="expenseAmt" placeholder="0.00" step="0.01" min="0" /></div>
             </div>
             <div class="field">
-                <label>💰 收入 (¥)</label>
+                <label>收入 (¥)</label>
                 <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
             </div>
         </div>
         <div class="input-row">
             <div class="field" style="flex: 1;">
-                <label>📦 货款 (¥)</label>
+                <label>货款 (¥)</label>
                 <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
             </div>
             <div class="field" style="flex: 1; visibility: hidden;"></div>
         </div>
         <div class="field">
-            <label>📝 备注</label>
+            <label>备注</label>
             <textarea id="noteInput" placeholder="比如：买菜、工资、货款…" rows="1"></textarea>
         </div>
     </div>
-    <button class="btn-submit" id="submitBtn">✅ 记 录</button>
+    <button class="btn-submit" id="submitBtn">记录</button>
 
-    <!-- 统计看板 -->
     <div class="stats-section">
-        <div class="section-label">📊 所选日期的明细</div>
+        <div class="section-label">所选日期的明细</div>
         <div id="statsContainer"></div>
         <div class="grand-total" id="grandTotal"></div>
     </div>
 
-    <!-- 最近记录 -->
     <div class="history-section">
         <div class="history-header">
-            <div class="section-label">📋 全部记录</div>
-            <button class="clear-btn" id="clearAllBtn">🗑 清空全部</button>
+            <div class="section-label">全部记录</div>
+            <button class="clear-btn" id="clearAllBtn">清空全部</button>
         </div>
         <div class="record-list" id="recordList"></div>
     </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- 底部版本号 -->
 <footer class="app-footer">
-    当前版本：<span id="version">v0.03</span>
+    当前版本：<span id="version">v0.04</span>
 </footer>
 
-<!-- Firebase SDK（必须放在 script.js 之前） -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
-<!-- 主逻辑（外部 JS） -->
 <script src="script.js"></script>
 
 </body>

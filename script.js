@@ -27,10 +27,21 @@ try {
 //  2.  应用状态
 // ================================================================
 const state = {
-    currentPerson: '爸',
+    currentPerson: '爸', // 存储内部代号，显示时映射
     records: [],
     selectedDate: new Date().toISOString().slice(0, 10),
 };
+
+// 姓名映射
+const nameMap = {
+    '爸': '刘力伟',
+    '妈': '郑少容'
+};
+
+// 获取显示名称
+function getDisplayName(personKey) {
+    return nameMap[personKey] || personKey;
+}
 
 // DOM 引用
 const $ = (sel) => document.querySelector(sel);
@@ -102,11 +113,11 @@ submitBtn.addEventListener('click', function() {
     };
 
     submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ 提交中...';
+    submitBtn.textContent = '提交中...';
     const newRef = db.ref('familyRecords').push();
     newRef.set(record)
         .then(() => {
-            showToast('✅ 记录成功！');
+            showToast('记录成功！');
             expenseInput.value = '';
             incomeAmtInput.value = '';
             goodsInput.value = '';
@@ -114,7 +125,7 @@ submitBtn.addEventListener('click', function() {
             expenseInput.focus();
         })
         .catch((err) => { console.error(err); showToast('❌ 提交失败'); })
-        .finally(() => { submitBtn.disabled = false; submitBtn.textContent = '✅ 记 录'; });
+        .finally(() => { submitBtn.disabled = false; submitBtn.textContent = '记录'; });
 });
 
 noteInput.addEventListener('keydown', (e) => {
@@ -135,7 +146,7 @@ selectedDateInput.addEventListener('change', function() {
 // ================================================================
 function loadData() {
     if (!isFirebaseReady) {
-        renderEmptyState('⏳ 等待数据库连接...');
+        renderEmptyState('等待数据库连接...');
         return;
     }
     const ref = db.ref('familyRecords');
@@ -162,15 +173,15 @@ function renderStats() {
     const records = state.records;
     const selectedDate = state.selectedDate;
     const dayRecords = records.filter(r => r.date === selectedDate);
-    const persons = ['爸', '妈'];
-    const emojiMap = { '爸': '👨', '妈': '👩' };
+    // 使用内部键名，但显示时映射
+    const personKeys = ['爸', '妈'];
 
     const totalIncomeAll = dayRecords.reduce((sum, r) => sum + (r.income || 0), 0);
     const totalGoodsAll = dayRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
     const profit = totalIncomeAll - totalGoodsAll;
 
     let profitHtml = `<div class="profit-card">`;
-    profitHtml += `<span class="profit-label">📈 所选日期 (${formatDate(selectedDate)}) 盈利</span>`;
+    profitHtml += `<span class="profit-label">所选日期 (${formatDate(selectedDate)}) 盈利</span>`;
     let profitClass = 'zero';
     if (profit > 0) profitClass = 'positive';
     else if (profit < 0) profitClass = 'negative';
@@ -178,19 +189,21 @@ function renderStats() {
     profitHtml += `</div>`;
 
     let html = profitHtml;
-    persons.forEach(p => {
-        const pRecords = dayRecords.filter(r => r.person === p);
+    personKeys.forEach(key => {
+        const pRecords = dayRecords.filter(r => r.person === key);
         const totalExpense = pRecords.reduce((sum, r) => sum + (r.expense || 0), 0);
         const totalIncome = pRecords.reduce((sum, r) => sum + (r.income || 0), 0);
         const totalGoods = pRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
 
+        const displayName = getDisplayName(key);
+
         html += `<div class="member-stat-card">`;
         html += `<div class="member-stat-header">
-                    <span class="name"><span class="emoji-sm">${emojiMap[p]}</span> ${p}</span>
+                    <span class="name">${displayName}</span>
                     <span class="totals">
                         <span class="cost">-¥${toFixed(totalExpense)}</span>
                         <span class="income">+¥${toFixed(totalIncome)}</span>
-                        <span class="goods">📦¥${toFixed(totalGoods)}</span>
+                        <span class="goods">¥${toFixed(totalGoods)}</span>
                         <span class="count">${pRecords.length}笔</span>
                     </span>
                 </div>`;
@@ -209,7 +222,7 @@ function renderStats() {
                 let amountHtml = '';
                 if (expense > 0) amountHtml += `<span class="cost">-¥${toFixed(expense)}</span>`;
                 if (income > 0) amountHtml += `<span class="income">+¥${toFixed(income)}</span>`;
-                if (goods > 0) amountHtml += `<span class="goods">📦¥${toFixed(goods)}</span>`;
+                if (goods > 0) amountHtml += `<span class="goods">¥${toFixed(goods)}</span>`;
                 if (!amountHtml) amountHtml = `<span>—</span>`;
                 html += `<div class="detail-item">
                             <div class="left">
@@ -229,9 +242,9 @@ function renderStats() {
     const allIncome = dayRecords.reduce((sum, r) => sum + (r.income || 0), 0);
     const allGoods = dayRecords.reduce((sum, r) => sum + (r.goods || 0), 0);
     grandTotal.innerHTML = `
-        <div class="item">💸 总支出 <span class="num cost">¥${toFixed(allExpense)}</span></div>
-        <div class="item">💰 总收入 <span class="num income">¥${toFixed(allIncome)}</span></div>
-        <div class="item">📦 总货款 <span class="num goods">¥${toFixed(allGoods)}</span></div>
+        <div class="item">总支出 <span class="num cost">¥${toFixed(allExpense)}</span></div>
+        <div class="item">总收入 <span class="num income">¥${toFixed(allIncome)}</span></div>
+        <div class="item">总货款 <span class="num goods">¥${toFixed(allGoods)}</span></div>
     `;
 }
 
@@ -239,11 +252,10 @@ function renderStats() {
 function renderRecords() {
     const records = state.records;
     if (!records || records.length === 0) {
-        recordList.innerHTML = `<div class="empty-state"><span class="icon">📭</span>还没有记录，快来记一笔吧！</div>`;
+        recordList.innerHTML = `<div class="empty-state">还没有记录，快来记一笔吧！</div>`;
         return;
     }
     const showRecords = records.slice(0, 50);
-    const emojiMap = { '爸': '👨', '妈': '👩' };
     let html = '';
     showRecords.forEach((r, index) => {
         const dateStr = r.date || '未知日期';
@@ -254,16 +266,17 @@ function renderRecords() {
         let rightHtml = '';
         if (expense > 0) rightHtml += `<span class="cost">-¥${toFixed(expense)}</span>`;
         if (income > 0) rightHtml += `<span class="income">+¥${toFixed(income)}</span>`;
-        if (goods > 0) rightHtml += `<span class="goods">📦¥${toFixed(goods)}</span>`;
+        if (goods > 0) rightHtml += `<span class="goods">¥${toFixed(goods)}</span>`;
         if (!rightHtml) rightHtml = `<span class="empty">—</span>`;
+        const displayName = getDisplayName(r.person);
         html += `
             <div class="record-item" data-id="${r.id}" style="animation-delay:${index * 20}ms">
                 <div class="left">
                     <div class="top">
-                        <span class="pname">${emojiMap[r.person] || '👤'} ${r.person}</span>
+                        <span class="pname">${displayName}</span>
                         <span class="pdate">${formatDate(dateStr)}</span>
                     </div>
-                    ${note ? `<div class="note">📌 ${note}</div>` : ''}
+                    ${note ? `<div class="note">${note}</div>` : ''}
                 </div>
                 <div class="right">
                     ${rightHtml}
@@ -286,24 +299,24 @@ function renderRecords() {
 function deleteRecord(id) {
     if (!isFirebaseReady) return;
     db.ref(`familyRecords/${id}`).remove()
-        .then(() => showToast('🗑 已删除'))
-        .catch(() => showToast('❌ 删除失败'));
+        .then(() => showToast('已删除'))
+        .catch(() => showToast('删除失败'));
 }
 
 clearAllBtn.addEventListener('click', function() {
-    if (state.records.length === 0) { showToast('📭 没有记录'); return; }
-    if (confirm('⚠️ 确定清空所有记录吗？不可恢复！')) {
+    if (state.records.length === 0) { showToast('没有记录'); return; }
+    if (confirm('确定清空所有记录吗？不可恢复！')) {
         if (!isFirebaseReady) return;
         db.ref('familyRecords').remove()
-            .then(() => showToast('🗑 已清空'))
-            .catch(() => showToast('❌ 清空失败'));
+            .then(() => showToast('已清空'))
+            .catch(() => showToast('清空失败'));
     }
 });
 
 function renderEmptyState(msg) {
     statsContainer.innerHTML = `<div class="member-stat-card" style="text-align:center;color:#b8a392;padding:20px;">${msg}</div>`;
     grandTotal.innerHTML = '';
-    recordList.innerHTML = `<div class="empty-state"><span class="icon">⏳</span>${msg}</div>`;
+    recordList.innerHTML = `<div class="empty-state">${msg}</div>`;
 }
 
 // ================================================================
@@ -320,14 +333,17 @@ statsContainer.addEventListener('click', (e) => {
     if (!card) return;
     const nameEl = card.querySelector('.member-stat-header .name');
     if (!nameEl) return;
-    const name = nameEl.textContent.trim();
-    const map = { '👨爸': '爸', '👩妈': '妈' };
-    const person = map[name] || name;
-    if (['爸', '妈'].includes(person)) {
-        personBtns.forEach(b => b.classList.toggle('active', b.dataset.person === person));
-        state.currentPerson = person;
-        showToast(`👤 切换到 ${person}`);
+    const displayName = nameEl.textContent.trim();
+    // 反向映射查找内部键
+    let personKey = null;
+    for (let [key, val] of Object.entries(nameMap)) {
+        if (val === displayName) { personKey = key; break; }
+    }
+    if (personKey && ['爸', '妈'].includes(personKey)) {
+        personBtns.forEach(b => b.classList.toggle('active', b.dataset.person === personKey));
+        state.currentPerson = personKey;
+        showToast(`切换到 ${displayName}`);
     }
 });
 
-console.log('📒 收支账本（HTML+CSS+JS 完全分离）已启动！');
+console.log('收支账本（姓名映射，无图标，无金额前缀）已启动！');

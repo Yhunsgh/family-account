@@ -55,7 +55,6 @@ body {
     font-weight: 700;
     color: #5a3e2b;
 }
-.header h1 span { font-size: 26px; margin-right: 4px; }
 .header .date-picker {
     background: #ede7e0;
     padding: 4px 12px 4px 8px;
@@ -127,7 +126,6 @@ body {
     background: #f5ede4;
     box-shadow: 0 0 0 3px rgba(201,167,123,0.2);
 }
-.person-btn .emoji { display: block; font-size: 26px; margin-bottom: 2px; }
 
 /* ========== 输入区域 ========== */
 .input-group {
@@ -256,7 +254,6 @@ body {
     font-weight: 700;
     color: #5a3e2b;
 }
-.member-stat-header .name .emoji-sm { font-size: 22px; margin-right: 4px; }
 .member-stat-header .totals {
     display: flex;
     gap: 16px;
