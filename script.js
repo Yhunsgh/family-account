@@ -76,11 +76,14 @@ const debtStats = $('#debtStats');
 //  4.  工具函数
 // ================================================================
 const formatDate = dateStr => {
+    if (!dateStr) return '无日期';
     const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return '无效日期';
     return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
 const formatTime = ts => {
     const d = new Date(ts);
+    if (isNaN(d.getTime())) return '未知时间';
     return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 const toFixed = v => Number(v).toFixed(2);
@@ -137,21 +140,23 @@ setupEnterNavigation([expenseInput, incomeAmtInput, goodsInput, noteInput], subm
 setupEnterNavigation([debtAmount, debtGoodsAmount, debtNote], debtSubmitBtn);
 
 // ================================================================
-//  7.  提交记录（通用）—— 已修复取值错误
+//  7.  提交记录（通用）—— 已修复取值错误 + 增加 date 字段
 // ================================================================
 const submitRecord = (refPath, fields, submitBtn) => {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
     const person = state.currentPerson;
-    // 正确获取每个输入框的数值（DOM元素的值）
     const values = fields.map(f => parseFloatInput(f.value.value));
-    // 正确获取备注文本
     const note = fields[fields.length - 1].value.value.trim() || '';
     if (values.every(v => v === 0)) {
         showToast('⚠️ 至少填一项金额');
         return;
     }
 
-    const record = { person, ...fields.reduce((acc, f, i) => ({ ...acc, [f.key]: values[i] }), {}) };
+    const record = { 
+        person, 
+        ...fields.reduce((acc, f, i) => ({ ...acc, [f.key]: values[i] }), {}),
+        date: state.selectedDate,   // ✅ 关键修复：保存当前选中的日期
+    };
     if (note) record.note = note;
     record.createdAt = Date.now();
 
@@ -160,9 +165,7 @@ const submitRecord = (refPath, fields, submitBtn) => {
     db.ref(refPath).push().set(record)
         .then(() => {
             showToast('记录成功！');
-            // 清空所有输入框
             fields.forEach(f => f.value.value = '');
-            // 焦点回到第一个输入框
             fields[0].value.focus();
         })
         .catch(err => { console.error(err); showToast('❌ 提交失败'); })
@@ -220,7 +223,7 @@ const loadData = () => {
 };
 
 // ================================================================
-//  10. 通用列表渲染
+//  10. 通用列表渲染 —— 兼容无 date 字段的旧记录
 // ================================================================
 const renderRecordList = (records, container, renderRight, dateKey = 'date', timeKey = 'createdAt') => {
     if (!records || records.length === 0) {
@@ -231,7 +234,15 @@ const renderRecordList = (records, container, renderRight, dateKey = 'date', tim
     records.slice(0, 50).forEach((r, i) => {
         const displayName = getDisplayName(r.person);
         const note = r.note || '';
-        const dateStr = dateKey === 'date' ? formatDate(r[dateKey]) : formatTime(r[timeKey]);
+        // 如果记录没有 date 字段，则回退到 createdAt 显示时间
+        let dateStr;
+        if (r[dateKey]) {
+            dateStr = formatDate(r[dateKey]);
+        } else if (r[timeKey]) {
+            dateStr = formatTime(r[timeKey]);
+        } else {
+            dateStr = '无日期';
+        }
         const rightHtml = renderRight(r);
         html += `
             <div class="record-item" style="animation-delay:${i * 20}ms">
@@ -433,22 +444,21 @@ statsContainer.addEventListener('click', e => {
 //  18. 版本与更新公告
 // ================================================================
 const UPDATE_LOGS = {
-    'v0.01': [
-        '优化代码结构，提升性能',
+    'v0.1': [
+        '新增“家庭支出”模块，支持个人与家庭支出分开记录',
+        '优化债务模块，增加按人统计的欠款汇总',
+        '修复日期选择不刷新明细的问题'
     ],
-    'v0.02': [
-        '优化代码结构，提升性能',
-    ],
-    'v0.03': [
-        '优化代码结构，提升性能',
-    ],
-    'v0.04': [
-        '优化代码结构，提升性能',
+    'v0.2': [
+        '添加更新公告弹窗，版本变化自动提示',
+        '界面微调，改善移动端显示'
     ],
     'v0.09': [
-        '新增债务记录模块，支持欠款和货款欠款',
-        '优化代码结构，提升性能'
-    ],
+        '📢 引入更新公告弹窗，版本变化自动通知',
+        '优化弹窗交互，支持“本次不再提示”',
+        '版本号显示统一为 v0.09',
+        '修复新记录日期显示 NaN 的问题'
+    ]
 };
 
 const modalOverlay = document.getElementById('updateModal');
