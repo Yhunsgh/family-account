@@ -137,13 +137,15 @@ setupEnterNavigation([expenseInput, incomeAmtInput, goodsInput, noteInput], subm
 setupEnterNavigation([debtAmount, debtGoodsAmount, debtNote], debtSubmitBtn);
 
 // ================================================================
-//  7.  提交记录（通用）
+//  7.  提交记录（通用）—— 已修复取值错误
 // ================================================================
 const submitRecord = (refPath, fields, submitBtn) => {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
     const person = state.currentPerson;
-    const values = fields.map(f => parseFloatInput(f.value));
-    const note = fields[fields.length - 1].value.trim() || '';
+    // 正确获取每个输入框的数值（DOM元素的值）
+    const values = fields.map(f => parseFloatInput(f.value.value));
+    // 正确获取备注文本
+    const note = fields[fields.length - 1].value.value.trim() || '';
     if (values.every(v => v === 0)) {
         showToast('⚠️ 至少填一项金额');
         return;
@@ -158,8 +160,10 @@ const submitRecord = (refPath, fields, submitBtn) => {
     db.ref(refPath).push().set(record)
         .then(() => {
             showToast('记录成功！');
-            fields.forEach(f => f.value = '');
-            fields[0].focus();
+            // 清空所有输入框
+            fields.forEach(f => f.value.value = '');
+            // 焦点回到第一个输入框
+            fields[0].value.focus();
         })
         .catch(err => { console.error(err); showToast('❌ 提交失败'); })
         .finally(() => { submitBtn.disabled = false; submitBtn.textContent = '记录'; });
@@ -337,7 +341,6 @@ const renderIncomeList = () => {
         if (goods > 0) html += `<span class="goods">货款 ¥${toFixed(goods)}</span>`;
         return html || `<span class="empty">—</span>`;
     }, 'date');
-    // 重新绑定删除事件（已由 renderRecordList 处理）
 };
 
 // ================================================================
@@ -377,7 +380,6 @@ const renderDebtList = () => {
         if (goodsAmount > 0) html += `<span class="goods">货款欠款 ¥${toFixed(goodsAmount)}</span>`;
         return html || `<span class="empty">—</span>`;
     }, null, 'createdAt');
-    // 重新绑定删除事件（已由 renderRecordList 处理）
 };
 
 // ================================================================
@@ -428,10 +430,8 @@ statsContainer.addEventListener('click', e => {
 });
 
 // ================================================================
-//  18. 版本与更新公告（新增）
+//  18. 版本与更新公告
 // ================================================================
-// 更新日志映射：版本号 → 更新内容数组
-// 每次发布新版本，在下方添加新条目，键必须与 HTML 中的版本号一致
 const UPDATE_LOGS = {
     'v0.01': [
         '优化代码结构，提升性能',
@@ -451,7 +451,6 @@ const UPDATE_LOGS = {
     ],
 };
 
-// 弹窗 DOM
 const modalOverlay = document.getElementById('updateModal');
 const oldVersionSpan = document.getElementById('oldVersion');
 const newVersionSpan = document.getElementById('newVersion');
@@ -460,50 +459,34 @@ const dontShowAgainCheck = document.getElementById('dontShowAgain');
 const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
 function checkUpdateModal() {
-    // 读取当前版本（来自 HTML 底部）
     const currentVersion = document.getElementById('version').textContent.trim();
-    // 读取上次显示的版本（本地存储）
     let lastShownVersion = localStorage.getItem('lastShownVersion') || 'v0.0';
-    // 读取用户忽略的版本
     const ignoredVersion = localStorage.getItem('ignoredVersion');
 
-    // 如果当前版本已被忽略，则不弹窗
-    if (ignoredVersion === currentVersion) {
-        return;
-    }
+    if (ignoredVersion === currentVersion) return;
+    if (currentVersion === lastShownVersion) return;
 
-    // 获取当前版本的更新内容（若没有则显示默认提示）
     const updateItems = UPDATE_LOGS[currentVersion] || ['本次更新内容未填写，请查看代码中的 UPDATE_LOGS'];
-
-    // 填充弹窗内容
     oldVersionSpan.textContent = lastShownVersion;
     newVersionSpan.textContent = currentVersion;
     updateListEl.innerHTML = updateItems.map(item => `<li>${item}</li>`).join('');
-
-    // 显示弹窗
     modalOverlay.classList.add('active');
 }
 
-// 确认按钮事件
 modalConfirmBtn.addEventListener('click', function() {
     const currentVersion = document.getElementById('version').textContent.trim();
     if (dontShowAgainCheck.checked) {
-        // 用户勾选“本次更新不再提示”，存储忽略版本
         localStorage.setItem('ignoredVersion', currentVersion);
     }
-    // 无论是否勾选，都记录本次已显示版本（下次版本变化仍会弹出）
     localStorage.setItem('lastShownVersion', currentVersion);
     modalOverlay.classList.remove('active');
 });
-
-// 点击外部不关闭弹窗（只通过按钮关闭）
 
 // ================================================================
 //  19. 启动
 // ================================================================
 loadData();
 
-// 页面加载完成后检测更新（延迟确保 DOM 渲染）
 setTimeout(() => {
     checkUpdateModal();
 }, 500);
