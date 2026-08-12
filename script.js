@@ -73,7 +73,7 @@ const clearDebtBtn = $('#clearDebtBtn');
 const debtStats = $('#debtStats');
 
 // ================================================================
-//  4.  工具函数
+//  4.  工具函数（日期格式化只显示月/日）
 // ================================================================
 const formatDate = dateStr => {
     if (!dateStr) return '无日期';
@@ -81,10 +81,11 @@ const formatDate = dateStr => {
     if (isNaN(d.getTime())) return '无效日期';
     return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
-const formatTime = ts => {
+// 从时间戳提取日期（仅日期，不含时间）
+const formatDateFromTimestamp = ts => {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return '未知时间';
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (isNaN(d.getTime())) return '未知日期';
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
 const toFixed = v => Number(v).toFixed(2);
 const parseFloatInput = val => parseFloat(val) || 0;
@@ -140,7 +141,7 @@ setupEnterNavigation([expenseInput, incomeAmtInput, goodsInput, noteInput], subm
 setupEnterNavigation([debtAmount, debtGoodsAmount, debtNote], debtSubmitBtn);
 
 // ================================================================
-//  7.  提交记录（通用）—— 已修复取值错误 + 增加 date 字段
+//  7.  提交记录（通用）—— 保存日期字段，修复取值错误
 // ================================================================
 const submitRecord = (refPath, fields, submitBtn) => {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
@@ -155,7 +156,7 @@ const submitRecord = (refPath, fields, submitBtn) => {
     const record = { 
         person, 
         ...fields.reduce((acc, f, i) => ({ ...acc, [f.key]: values[i] }), {}),
-        date: state.selectedDate,   // ✅ 关键修复：保存当前选中的日期
+        date: state.selectedDate,   // 关键：保存选择的日期
     };
     if (note) record.note = note;
     record.createdAt = Date.now();
@@ -223,7 +224,7 @@ const loadData = () => {
 };
 
 // ================================================================
-//  10. 通用列表渲染 —— 兼容无 date 字段的旧记录
+//  10. 通用列表渲染 —— 日期仅显示月/日，不显示时间
 // ================================================================
 const renderRecordList = (records, container, renderRight, dateKey = 'date', timeKey = 'createdAt') => {
     if (!records || records.length === 0) {
@@ -234,12 +235,12 @@ const renderRecordList = (records, container, renderRight, dateKey = 'date', tim
     records.slice(0, 50).forEach((r, i) => {
         const displayName = getDisplayName(r.person);
         const note = r.note || '';
-        // 如果记录没有 date 字段，则回退到 createdAt 显示时间
+        // 优先使用 date 字段，若无则从 createdAt 提取日期
         let dateStr;
         if (r[dateKey]) {
             dateStr = formatDate(r[dateKey]);
         } else if (r[timeKey]) {
-            dateStr = formatTime(r[timeKey]);
+            dateStr = formatDateFromTimestamp(r[timeKey]);
         } else {
             dateStr = '无日期';
         }
@@ -381,7 +382,7 @@ const renderDebtStats = () => {
 };
 
 // ================================================================
-//  14. 渲染：债务全部记录
+//  14. 渲染：债务全部记录 —— 明确使用 date 字段，仅显示日期
 // ================================================================
 const renderDebtList = () => {
     renderRecordList(state.debtRecords, debtRecordList, r => {
@@ -390,7 +391,7 @@ const renderDebtList = () => {
         if (amount > 0) html += `<span class="cost">欠款 ¥${toFixed(amount)}</span>`;
         if (goodsAmount > 0) html += `<span class="goods">货款欠款 ¥${toFixed(goodsAmount)}</span>`;
         return html || `<span class="empty">—</span>`;
-    }, null, 'createdAt');
+    }, 'date', 'createdAt');   // 使用 date 作为主日期字段
 };
 
 // ================================================================
@@ -456,8 +457,8 @@ const UPDATE_LOGS = {
     'v0.09': [
         '📢 引入更新公告弹窗，版本变化自动通知',
         '优化弹窗交互，支持“本次不再提示”',
-        '版本号显示统一为 v0.09',
-        '修复新记录日期显示 NaN 的问题'
+        '修复新记录日期显示 NaN 的问题',
+        '所有列表日期统一显示为“X月X日”，不含时间'
     ]
 };
 
