@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>收支账本 · 债务</title>
+    <title>收支账本 · 家庭支出 · 债务</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <div class="app">
-    <!-- 全局人员选择（共享） -->
+    <!-- 人员选择 -->
     <div class="person-section">
         <div class="section-label">谁在记账？ <span class="badge">点击切换</span></div>
         <div class="person-selector" id="personSelector">
@@ -18,18 +18,17 @@
         </div>
     </div>
 
-    <!-- 左右双栏 -->
-    <div class="double-col">
-        <!-- ===== 左侧：收支账本 ===== -->
+    <!-- 三栏容器 -->
+    <div class="triple-col">
+        <!-- ===== 左：收支 ===== -->
         <div class="module-box income-module">
             <div class="module-header">
                 <h2>收支账本</h2>
                 <div class="date-picker">
                     日期：
-                    <input type="date" id="selectedDate" />
+                    <input type="date" id="incomeDate" />
                 </div>
             </div>
-
             <div class="input-group">
                 <div class="input-row">
                     <div class="field">
@@ -54,29 +53,65 @@
                 </div>
                 <button class="btn-submit" id="submitBtn">记录</button>
             </div>
-
             <div class="stats-section">
                 <div class="section-label">所选日期的明细</div>
-                <div id="statsContainer"></div>
-                <div class="grand-total" id="grandTotal"></div>
+                <div id="incomeStatsContainer"></div>
+                <div class="grand-total" id="incomeGrandTotal"></div>
             </div>
-
             <div class="history-section">
                 <div class="history-header">
                     <div class="section-label">全部收支记录</div>
-                    <button class="clear-btn" id="clearAllBtn">清空全部</button>
+                    <button class="clear-btn" id="clearIncomeBtn">清空全部</button>
                 </div>
-                <div class="record-list" id="recordList"></div>
+                <div class="record-list" id="incomeRecordList"></div>
             </div>
         </div>
 
-        <!-- ===== 右侧：债务 ===== -->
+        <!-- ===== 中：家庭支出 ===== -->
+        <div class="module-box family-module">
+            <div class="module-header">
+                <h2>家庭支出</h2>
+                <div class="date-picker">
+                    日期：
+                    <input type="date" id="familyDate" />
+                </div>
+            </div>
+            <div class="input-group">
+                <div class="input-row">
+                    <div class="field">
+                        <label>个人支出 (¥)</label>
+                        <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" /></div>
+                    </div>
+                    <div class="field">
+                        <label>家庭支出 (¥)</label>
+                        <div class="currency"><input type="number" id="familyExpense" placeholder="0.00" step="0.01" min="0" /></div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>备注</label>
+                    <textarea id="familyNote" placeholder="请输入备注" rows="1"></textarea>
+                </div>
+                <button class="btn-submit" id="familySubmitBtn">记录</button>
+            </div>
+            <div class="stats-section">
+                <div class="section-label">所选日期的明细</div>
+                <div id="familyStatsContainer"></div>
+                <div class="grand-total" id="familyGrandTotal"></div>
+            </div>
+            <div class="history-section">
+                <div class="history-header">
+                    <div class="section-label">全部家庭支出记录</div>
+                    <button class="clear-btn" id="clearFamilyBtn">清空全部</button>
+                </div>
+                <div class="record-list" id="familyRecordList"></div>
+            </div>
+        </div>
+
+        <!-- ===== 右：债务 ===== -->
         <div class="module-box debt-module">
             <div class="module-header">
                 <h2>债务</h2>
-                <!-- 无日期选择 -->
             </div>
-
             <div class="input-group">
                 <div class="input-row">
                     <div class="field">
@@ -94,10 +129,7 @@
                 </div>
                 <button class="btn-submit" id="debtSubmitBtn">记录</button>
             </div>
-
-            <!-- 债务统计 -->
             <div class="stats-section" id="debtStats"></div>
-
             <div class="history-section">
                 <div class="history-header">
                     <div class="section-label">全部债务记录</div>
@@ -109,23 +141,25 @@
     </div>
 </div>
 
+<!-- Toast 提示 -->
 <div class="toast" id="toast"></div>
 
-<footer class="app-footer">
-    当前版本：<span id="version">v0.10</span>
-</footer>
-
-<!-- ===== 更新公告弹窗（可选） ===== -->
+<!-- ===== 更新公告弹窗 ===== -->
 <div class="modal-overlay" id="updateModal">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">📢 更新公告</span>
         </div>
         <div class="modal-body">
-            <div class="version-info">版本 <span id="oldVersion"></span> → <span id="newVersion"></span></div>
-            <ul class="update-list" id="updateList"></ul>
+            <div class="version-info">
+                版本 <span id="oldVersion"></span> → <span id="newVersion"></span>
+            </div>
+            <ul class="update-list" id="updateList">
+                <!-- 由 JavaScript 动态填充 -->
+            </ul>
             <label class="modal-checkbox">
-                <input type="checkbox" id="dontShowAgain" /> 本次更新不再提示
+                <input type="checkbox" id="dontShowAgain" />
+                本次更新不再提示
             </label>
         </div>
         <div class="modal-footer">
@@ -133,6 +167,10 @@
         </div>
     </div>
 </div>
+
+<footer class="app-footer">
+    当前版本：<span id="version">v0.11</span>
+</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
