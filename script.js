@@ -11,10 +11,9 @@ const firebaseConfig = {
     appId: "1:883258053961:web:44d29f6635598b6a22f698"
 };
 
-const PERSON_KEYS = ['爸', '妈'];
+const PERSON_KEYS = ['刘力伟', '郑少容'];   // 直接使用真实姓名
 const INCOME_NODE = 'familyRecords';
 const DEBT_NODE = 'debtRecords';
-const NAME_MAP = { '爸': '刘力伟', '妈': '郑少容' };
 
 let db = null;
 let isFirebaseReady = false;
@@ -28,21 +27,10 @@ try {
 }
 
 // ================================================================
-//  2.  映射工具
-// ================================================================
-const getDisplayName = key => NAME_MAP[key] || key;
-const getInternalKey = displayName => {
-    for (const [k, v] of Object.entries(NAME_MAP)) {
-        if (v === displayName) return k;
-    }
-    return displayName;
-};
-
-// ================================================================
-//  3.  应用状态
+//  2.  应用状态
 // ================================================================
 const state = {
-    currentPerson: '爸',
+    currentPerson: '刘力伟',   // 直接存姓名
     records: [],
     debtRecords: [],
     selectedDate: new Date().toISOString().slice(0, 10),
@@ -73,18 +61,15 @@ const clearDebtBtn = $('#clearDebtBtn');
 const debtStats = $('#debtStats');
 
 // ================================================================
-//  4.  工具函数
+//  3.  工具函数
 // ================================================================
 const formatDate = dateStr => {
-    if (!dateStr) return '无日期';
     const d = new Date(dateStr + 'T00:00:00');
-    if (isNaN(d.getTime())) return '无效日期';
     return `${d.getMonth() + 1}月${d.getDate()}日`;
 };
-const formatDateFromTimestamp = ts => {
+const formatTime = ts => {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return '未知日期';
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 const toFixed = v => Number(v).toFixed(2);
 const parseFloatInput = val => parseFloat(val) || 0;
@@ -100,11 +85,11 @@ const showToast = (msg, duration = 2000) => {
 };
 
 // ================================================================
-//  5.  人员切换
+//  4.  人员切换
 // ================================================================
-const switchPerson = personKey => {
-    personBtns.forEach(b => b.classList.toggle('active', b.dataset.person === personKey));
-    state.currentPerson = personKey;
+const switchPerson = personName => {
+    personBtns.forEach(b => b.classList.toggle('active', b.dataset.person === personName));
+    state.currentPerson = personName;
 };
 
 personBtns.forEach(btn => {
@@ -118,7 +103,7 @@ personBtns.forEach(btn => {
 });
 
 // ================================================================
-//  6.  键盘导航
+//  5.  键盘导航
 // ================================================================
 const setupEnterNavigation = (inputs, submitBtn) => {
     inputs.forEach((input, i) => {
@@ -140,23 +125,19 @@ setupEnterNavigation([expenseInput, incomeAmtInput, goodsInput, noteInput], subm
 setupEnterNavigation([debtAmount, debtGoodsAmount, debtNote], debtSubmitBtn);
 
 // ================================================================
-//  7.  提交记录（通用）
+//  6.  提交记录（通用）
 // ================================================================
 const submitRecord = (refPath, fields, submitBtn) => {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
-    const person = state.currentPerson;
-    const values = fields.map(f => parseFloatInput(f.value.value));
-    const note = fields[fields.length - 1].value.value.trim() || '';
+    const person = state.currentPerson;   // 直接使用姓名
+    const values = fields.map(f => parseFloatInput(f.value));
+    const note = fields[fields.length - 1].value.trim() || '';
     if (values.every(v => v === 0)) {
         showToast('⚠️ 至少填一项金额');
         return;
     }
 
-    const record = { 
-        person, 
-        ...fields.reduce((acc, f, i) => ({ ...acc, [f.key]: values[i] }), {}),
-        date: state.selectedDate,
-    };
+    const record = { person, ...fields.reduce((acc, f, i) => ({ ...acc, [f.key]: values[i] }), {}) };
     if (note) record.note = note;
     record.createdAt = Date.now();
 
@@ -165,8 +146,8 @@ const submitRecord = (refPath, fields, submitBtn) => {
     db.ref(refPath).push().set(record)
         .then(() => {
             showToast('记录成功！');
-            fields.forEach(f => f.value.value = '');
-            fields[0].value.focus();
+            fields.forEach(f => f.value = '');
+            fields[0].focus();
         })
         .catch(err => { console.error(err); showToast('❌ 提交失败'); })
         .finally(() => { submitBtn.disabled = false; submitBtn.textContent = '记录'; });
@@ -190,7 +171,7 @@ debtSubmitBtn.addEventListener('click', () => {
 });
 
 // ================================================================
-//  8.  日期选择器
+//  7.  日期选择器
 // ================================================================
 selectedDateInput.value = getTodayStr();
 selectedDateInput.addEventListener('change', function() {
@@ -199,7 +180,7 @@ selectedDateInput.addEventListener('change', function() {
 });
 
 // ================================================================
-//  9.  数据读取 & 实时更新
+//  8.  数据读取 & 实时更新
 // ================================================================
 const loadData = () => {
     if (!isFirebaseReady) {
@@ -223,25 +204,18 @@ const loadData = () => {
 };
 
 // ================================================================
-//  10. 通用列表渲染 —— 增加 recordType 参数，用于删除按钮类型
+//  9.  通用列表渲染
 // ================================================================
-const renderRecordList = (records, container, renderRight, dateKey = 'date', timeKey = 'createdAt', recordType = 'income') => {
+const renderRecordList = (records, container, renderRight, dateKey = 'date', timeKey = 'createdAt') => {
     if (!records || records.length === 0) {
         container.innerHTML = `<div class="empty-state">还没有记录</div>`;
         return;
     }
     let html = '';
     records.slice(0, 50).forEach((r, i) => {
-        const displayName = getDisplayName(r.person);
+        const displayName = r.person;   // 直接取数据库中的姓名
         const note = r.note || '';
-        let dateStr;
-        if (r[dateKey]) {
-            dateStr = formatDate(r[dateKey]);
-        } else if (r[timeKey]) {
-            dateStr = formatDateFromTimestamp(r[timeKey]);
-        } else {
-            dateStr = '无日期';
-        }
+        const dateStr = dateKey === 'date' ? formatDate(r[dateKey]) : formatTime(r[timeKey]);
         const rightHtml = renderRight(r);
         html += `
             <div class="record-item" style="animation-delay:${i * 20}ms">
@@ -254,7 +228,7 @@ const renderRecordList = (records, container, renderRight, dateKey = 'date', tim
                 </div>
                 <div class="right">
                     ${rightHtml}
-                    <button class="del-btn" data-id="${r.id}" data-type="${recordType}" title="删除">✕</button>
+                    <button class="del-btn" data-id="${r.id}" data-type="${r.type || 'income'}" title="删除">✕</button>
                 </div>
             </div>
         `;
@@ -271,7 +245,7 @@ const renderRecordList = (records, container, renderRight, dateKey = 'date', tim
 };
 
 // ================================================================
-//  11. 渲染：收支统计
+//  10. 渲染：收支统计
 // ================================================================
 const renderIncomeStats = () => {
     const dayRecords = state.records.filter(r => r.date === state.selectedDate);
@@ -285,16 +259,15 @@ const renderIncomeStats = () => {
         <span class="profit-amount ${profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'zero'}">¥${toFixed(profit)}</span>
     </div>`;
 
-    PERSON_KEYS.forEach(key => {
-        const displayName = getDisplayName(key);
-        const pRecords = dayRecords.filter(r => r.person === key);
+    PERSON_KEYS.forEach(name => {
+        const pRecords = dayRecords.filter(r => r.person === name);
         const totalExpense = pRecords.reduce((s, r) => s + (r.expense || 0), 0);
         const totalIncome = pRecords.reduce((s, r) => s + (r.income || 0), 0);
         const totalGoods = pRecords.reduce((s, r) => s + (r.goods || 0), 0);
 
         html += `<div class="member-stat-card">
             <div class="member-stat-header">
-                <span class="name">${displayName}</span>
+                <span class="name">${name}</span>
                 <span class="totals">
                     <span class="cost">-¥${toFixed(totalExpense)}</span>
                     <span class="income">+¥${toFixed(totalIncome)}</span>
@@ -340,7 +313,7 @@ const renderIncomeStats = () => {
 };
 
 // ================================================================
-//  12. 渲染：收支全部记录
+//  11. 渲染：收支全部记录
 // ================================================================
 const renderIncomeList = () => {
     renderRecordList(state.records, recordList, r => {
@@ -350,24 +323,23 @@ const renderIncomeList = () => {
         if (income > 0) html += `<span class="income">+¥${toFixed(income)}</span>`;
         if (goods > 0) html += `<span class="goods">货款 ¥${toFixed(goods)}</span>`;
         return html || `<span class="empty">—</span>`;
-    }, 'date', 'createdAt', 'income');
+    }, 'date');
 };
 
 // ================================================================
-//  13. 渲染：债务统计（按人显示总额）
+//  12. 渲染：债务统计
 // ================================================================
 const renderDebtStats = () => {
     const records = state.debtRecords;
     let html = '';
-    PERSON_KEYS.forEach(key => {
-        const displayName = getDisplayName(key);
-        const pRecords = records.filter(r => r.person === key);
+    PERSON_KEYS.forEach(name => {
+        const pRecords = records.filter(r => r.person === name);
         const totalAmount = pRecords.reduce((s, r) => s + (r.amount || 0), 0);
         const totalGoodsAmount = pRecords.reduce((s, r) => s + (r.goodsAmount || 0), 0);
         html += `
             <div class="member-stat-card" style="margin-bottom:12px;">
                 <div class="member-stat-header">
-                    <span class="name">${displayName}</span>
+                    <span class="name">${name}</span>
                     <span class="totals">
                         <span class="cost">欠款 ¥${toFixed(totalAmount)}</span>
                         <span class="goods">货款欠款 ¥${toFixed(totalGoodsAmount)}</span>
@@ -380,7 +352,7 @@ const renderDebtStats = () => {
 };
 
 // ================================================================
-//  14. 渲染：债务全部记录 —— 传入 recordType = 'debt'
+//  13. 渲染：债务全部记录
 // ================================================================
 const renderDebtList = () => {
     renderRecordList(state.debtRecords, debtRecordList, r => {
@@ -389,11 +361,11 @@ const renderDebtList = () => {
         if (amount > 0) html += `<span class="cost">欠款 ¥${toFixed(amount)}</span>`;
         if (goodsAmount > 0) html += `<span class="goods">货款欠款 ¥${toFixed(goodsAmount)}</span>`;
         return html || `<span class="empty">—</span>`;
-    }, 'date', 'createdAt', 'debt');  // 关键：指定为 debt 类型
+    }, null, 'createdAt');
 };
 
 // ================================================================
-//  15. 删除 & 清空
+//  14. 删除 & 清空
 // ================================================================
 const deleteRecord = (id, node) => {
     if (!isFirebaseReady) return;
@@ -416,7 +388,7 @@ clearAllBtn.addEventListener('click', () => clearRecords(INCOME_NODE, state.reco
 clearDebtBtn.addEventListener('click', () => clearRecords(DEBT_NODE, state.debtRecords, '确定清空所有债务记录吗？不可恢复！'));
 
 // ================================================================
-//  16. 空状态
+//  15. 空状态
 // ================================================================
 const renderEmptyState = msg => {
     statsContainer.innerHTML = `<div class="member-stat-card" style="text-align:center;color:#b8a392;padding:20px;">${msg}</div>`;
@@ -425,40 +397,45 @@ const renderEmptyState = msg => {
 };
 
 // ================================================================
-//  17. 点击统计卡片切换人员
+//  16. 点击统计卡片切换人员
 // ================================================================
 statsContainer.addEventListener('click', e => {
     const card = e.target.closest('.member-stat-card');
     if (!card) return;
     const nameEl = card.querySelector('.member-stat-header .name');
     if (!nameEl) return;
-    const internalKey = getInternalKey(nameEl.textContent.trim());
-    if (internalKey && PERSON_KEYS.includes(internalKey)) {
-        switchPerson(internalKey);
-        showToast(`切换到 ${getDisplayName(internalKey)}`);
+    const name = nameEl.textContent.trim();
+    if (PERSON_KEYS.includes(name)) {
+        switchPerson(name);
+        showToast(`切换到 ${name}`);
     }
 });
 
 // ================================================================
-//  18. 版本与更新公告
+//  17. 更新公告（可选）
 // ================================================================
 const UPDATE_LOGS = {
-    'v0.1': [
-        '新增“家庭支出”模块，支持个人与家庭支出分开记录',
-        '优化债务模块，增加按人统计的欠款汇总',
-        '修复日期选择不刷新明细的问题'
+    'v0.01': [
+        '优化代码结构，提升性能',
     ],
-    'v0.2': [
-        '添加更新公告弹窗，版本变化自动提示',
-        '界面微调，改善移动端显示'
+    'v0.02': [
+        '优化代码结构，提升性能',
+    ],
+    'v0.03': [
+        '优化代码结构，提升性能',
+    ],
+    'v0.04': [
+        '优化代码结构，提升性能',
     ],
     'v0.09': [
-        '📢 引入更新公告弹窗，版本变化自动通知',
-        '优化弹窗交互，支持“本次不再提示”',
-        '修复新记录日期显示 NaN 的问题',
-        '所有列表日期统一显示为“X月X日”，不含时间',
-        '修复债务记录单独删除无效的问题（删除按钮类型修正）'
-    ]
+        '新增债务记录模块，支持欠款和货款欠款',
+        '优化代码结构，提升性能'
+    ],
+    'v0.10': [
+        '数据库直接存储真实姓名，不再使用映射',
+        '界面显示直接使用数据库中的姓名',
+        '代码结构优化，逻辑更清晰'
+    ],
 };
 
 const modalOverlay = document.getElementById('updateModal');
@@ -472,11 +449,9 @@ function checkUpdateModal() {
     const currentVersion = document.getElementById('version').textContent.trim();
     let lastShownVersion = localStorage.getItem('lastShownVersion') || 'v0.0';
     const ignoredVersion = localStorage.getItem('ignoredVersion');
-
     if (ignoredVersion === currentVersion) return;
-    if (currentVersion === lastShownVersion) return;
 
-    const updateItems = UPDATE_LOGS[currentVersion] || ['本次更新内容未填写，请查看代码中的 UPDATE_LOGS'];
+    const updateItems = UPDATE_LOGS[currentVersion] || ['本次更新内容未填写'];
     oldVersionSpan.textContent = lastShownVersion;
     newVersionSpan.textContent = currentVersion;
     updateListEl.innerHTML = updateItems.map(item => `<li>${item}</li>`).join('');
@@ -493,7 +468,7 @@ modalConfirmBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  19. 启动
+//  18. 启动
 // ================================================================
 loadData();
 

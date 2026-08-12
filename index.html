@@ -13,8 +13,8 @@
     <div class="person-section">
         <div class="section-label">谁在记账？ <span class="badge">点击切换</span></div>
         <div class="person-selector" id="personSelector">
-            <button class="person-btn active" data-person="爸">刘力伟</button>
-            <button class="person-btn" data-person="妈">郑少容</button>
+            <button class="person-btn active" data-person="刘力伟">刘力伟</button>
+            <button class="person-btn" data-person="郑少容">郑少容</button>
         </div>
     </div>
 
@@ -95,10 +95,8 @@
                 <button class="btn-submit" id="debtSubmitBtn">记录</button>
             </div>
 
-            <!-- ===== 新增：债务统计（按人） ===== -->
-            <div class="stats-section" id="debtStats">
-                <!-- 由 JavaScript 动态渲染 -->
-            </div>
+            <!-- 债务统计 -->
+            <div class="stats-section" id="debtStats"></div>
 
             <div class="history-section">
                 <div class="history-header">
@@ -114,25 +112,20 @@
 <div class="toast" id="toast"></div>
 
 <footer class="app-footer">
-    当前版本：<span id="version">v0.09</span>
+    当前版本：<span id="version">v0.10</span>
 </footer>
 
-<!-- ===== 更新公告弹窗 ===== -->
+<!-- ===== 更新公告弹窗（可选） ===== -->
 <div class="modal-overlay" id="updateModal">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">📢 更新公告</span>
         </div>
         <div class="modal-body">
-            <div class="version-info">
-                版本 <span id="oldVersion"></span> → <span id="newVersion"></span>
-            </div>
-            <ul class="update-list" id="updateList">
-                <!-- 由 JavaScript 动态填充 -->
-            </ul>
+            <div class="version-info">版本 <span id="oldVersion"></span> → <span id="newVersion"></span></div>
+            <ul class="update-list" id="updateList"></ul>
             <label class="modal-checkbox">
-                <input type="checkbox" id="dontShowAgain" />
-                本次更新不再提示
+                <input type="checkbox" id="dontShowAgain" /> 本次更新不再提示
             </label>
         </div>
         <div class="modal-footer">
