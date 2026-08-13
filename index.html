@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>收支账本 · 家庭支出 · 债务</title>
+    <title>账本</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -20,10 +20,10 @@
 
     <!-- 三栏容器 -->
     <div class="triple-col">
-        <!-- ===== 左：收支 ===== -->
+        <!-- ===== 左：账本（原收支账本，删除支出） ===== -->
         <div class="module-box income-module">
             <div class="module-header">
-                <h2>收支账本</h2>
+                <h2>账本</h2>
                 <div class="date-picker">
                     日期：
                     <input type="date" id="incomeDate" />
@@ -32,20 +32,13 @@
             <div class="input-group">
                 <div class="input-row">
                     <div class="field">
-                        <label>支出 (¥)</label>
-                        <div class="currency"><input type="number" id="expenseAmt" placeholder="0.00" step="0.01" min="0" /></div>
-                    </div>
-                    <div class="field">
                         <label>收入 (¥)</label>
                         <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
                     </div>
-                </div>
-                <div class="input-row">
-                    <div class="field" style="flex: 1;">
+                    <div class="field">
                         <label>货款 (¥)</label>
                         <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
                     </div>
-                    <div class="field" style="flex: 1; visibility: hidden;"></div>
                 </div>
                 <div class="field">
                     <label>备注</label>
@@ -60,17 +53,17 @@
             </div>
             <div class="history-section">
                 <div class="history-header">
-                    <div class="section-label">全部收支记录</div>
+                    <div class="section-label">全部记录</div>
                     <button class="clear-btn" id="clearIncomeBtn">清空全部</button>
                 </div>
                 <div class="record-list" id="incomeRecordList"></div>
             </div>
         </div>
 
-        <!-- ===== 中：家庭支出 ===== -->
+        <!-- ===== 中：支出（原家庭支出，仅改标题） ===== -->
         <div class="module-box family-module">
             <div class="module-header">
-                <h2>家庭支出</h2>
+                <h2>支出</h2>
                 <div class="date-picker">
                     日期：
                     <input type="date" id="familyDate" />
@@ -100,7 +93,7 @@
             </div>
             <div class="history-section">
                 <div class="history-header">
-                    <div class="section-label">全部家庭支出记录</div>
+                    <div class="section-label">全部支出记录</div>
                     <button class="clear-btn" id="clearFamilyBtn">清空全部</button>
                 </div>
                 <div class="record-list" id="familyRecordList"></div>
@@ -169,7 +162,7 @@
 </div>
 
 <footer class="app-footer">
-    当前版本：<span id="version">v0.11</span>
+    当前版本：<span id="version">v0.12</span>
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>

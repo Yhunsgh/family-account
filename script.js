@@ -3,25 +3,31 @@
 // ================================================================
 const UPDATE_LOGS = {
     'v0.01': [
+        '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
     ],
     'v0.02': [
+        '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
     ],
     'v0.03': [
+        '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
     ],
     'v0.04': [
+        '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
     ],
     'v0.09': [
         '新增债务记录模块，支持欠款和货款欠款',
+        '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
     ],
     'v0.10': [
         '数据库直接存储真实姓名，不再使用映射',
         '界面显示直接使用数据库中的姓名',
-        '代码结构优化，逻辑更清晰'
+        '优化逻辑，修复已知问题',
+        '优化代码结构，提升性能'
     ],
     'v0.11': [
         '增加家庭支出模块，支持个人支出和家庭支出记录',
@@ -29,7 +35,13 @@ const UPDATE_LOGS = {
         '所有界面直接显示数据库中的姓名，不再依赖前端映射',
         '优化逻辑，修复已知问题',
         '优化代码结构，提升性能'
-    ]
+    ],
+    'v0.12': [
+        '账本模块删除"支出"字段，仅保留"收入"和"货款"',
+        '"家庭支出"模块更名为"支出"',
+        '整体标题改为"账本"'
+    ],
+   
 };
 
 // 弹窗 DOM
@@ -113,8 +125,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 // 人员
 const personBtns = $$('.person-btn');
 
-// 收支
-const expenseInput = $('#expenseAmt');
+// 账本（原收支）
 const incomeAmtInput = $('#incomeAmt');
 const goodsInput = $('#goodsAmt');
 const noteInput = $('#noteInput');
@@ -125,7 +136,7 @@ const incomeRecordList = $('#incomeRecordList');
 const incomeDateInput = $('#incomeDate');
 const clearIncomeBtn = $('#clearIncomeBtn');
 
-// 家庭支出
+// 支出（原家庭支出）
 const personalExpenseInput = $('#personalExpense');
 const familyExpenseInput = $('#familyExpense');
 const familyNoteInput = $('#familyNote');
@@ -181,23 +192,21 @@ personBtns.forEach(btn => {
 });
 
 // ================================================================
-//  6.  提交收支记录
+//  6.  提交账本记录（只含收入和货款，无支出）
 // ================================================================
 submitBtn.addEventListener('click', function() {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
     const person = state.currentPerson;
-    const expense = parseFloat(expenseInput.value) || 0;
     const income = parseFloat(incomeAmtInput.value) || 0;
     const goods = parseFloat(goodsInput.value) || 0;
     const note = noteInput.value.trim() || '';
-    if (expense === 0 && income === 0 && goods === 0) {
-        showToast('⚠️ 支出、收入或货款至少填一项');
+    if (income === 0 && goods === 0) {
+        showToast('⚠️ 收入或货款至少填一项');
         return;
     }
     const record = {
         person: person,
         date: state.incomeDate,
-        expense: expense,
         income: income,
         goods: goods,
         note: note,
@@ -209,11 +218,10 @@ submitBtn.addEventListener('click', function() {
     newRef.set(record)
         .then(() => {
             showToast('记录成功！');
-            expenseInput.value = '';
             incomeAmtInput.value = '';
             goodsInput.value = '';
             noteInput.value = '';
-            expenseInput.focus();
+            incomeAmtInput.focus();
         })
         .catch((err) => { console.error(err); showToast('❌ 提交失败'); })
         .finally(() => { submitBtn.disabled = false; submitBtn.textContent = '记录'; });
@@ -223,7 +231,7 @@ noteInput.addEventListener('keydown', (e) => {
 });
 
 // ================================================================
-//  7.  提交家庭支出记录
+//  7.  提交支出记录（原家庭支出，不改字段）
 // ================================================================
 familySubmitBtn.addEventListener('click', function() {
     if (!isFirebaseReady) { showToast('⚠️ 数据库未连接'); return; }
@@ -248,7 +256,7 @@ familySubmitBtn.addEventListener('click', function() {
     const newRef = db.ref('familyExpenses').push();
     newRef.set(record)
         .then(() => {
-            showToast('家庭支出记录成功！');
+            showToast('支出记录成功！');
             personalExpenseInput.value = '';
             familyExpenseInput.value = '';
             familyNoteInput.value = '';
@@ -324,7 +332,7 @@ function loadData() {
         showToast('⚠️ 数据库未连接');
         return;
     }
-    // 收支
+    // 账本（familyRecords）
     db.ref('familyRecords').on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) { state.incomeRecords = []; renderIncomeStats(); renderIncomeList(); return; }
@@ -333,9 +341,9 @@ function loadData() {
         state.incomeRecords = records;
         renderIncomeStats();
         renderIncomeList();
-    }, (err) => { console.error(err); showToast('⚠️ 读取收支数据失败'); });
+    }, (err) => { console.error(err); showToast('⚠️ 读取账本数据失败'); });
 
-    // 家庭支出
+    // 支出（familyExpenses）
     db.ref('familyExpenses').on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) { state.familyRecords = []; renderFamilyStats(); renderFamilyList(); return; }
@@ -344,7 +352,7 @@ function loadData() {
         state.familyRecords = records;
         renderFamilyStats();
         renderFamilyList();
-    }, (err) => { console.error(err); showToast('⚠️ 读取家庭支出数据失败'); });
+    }, (err) => { console.error(err); showToast('⚠️ 读取支出数据失败'); });
 
     // 债务
     db.ref('debtRecords').on('value', (snapshot) => {
@@ -359,7 +367,7 @@ function loadData() {
 }
 
 // ================================================================
-//  11. 渲染：收支统计（按人、按日期）
+//  11. 渲染：账本统计（只显示收入和货款，无支出）
 // ================================================================
 function renderIncomeStats() {
     const records = state.incomeRecords;
@@ -377,7 +385,6 @@ function renderIncomeStats() {
 
     PERSON_NAMES.forEach(name => {
         const pRecords = dayRecords.filter(r => r.person === name);
-        const totalExpense = pRecords.reduce((s, r) => s + (r.expense || 0), 0);
         const totalIncome = pRecords.reduce((s, r) => s + (r.income || 0), 0);
         const totalGoods = pRecords.reduce((s, r) => s + (r.goods || 0), 0);
 
@@ -385,7 +392,6 @@ function renderIncomeStats() {
             <div class="member-stat-header">
                 <span class="name">${name}</span>
                 <span class="totals">
-                    <span class="cost">-¥${toFixed(totalExpense)}</span>
                     <span class="income">+¥${toFixed(totalIncome)}</span>
                     <span class="goods">货款 ¥${toFixed(totalGoods)}</span>
                     <span class="count">${pRecords.length}笔</span>
@@ -397,12 +403,10 @@ function renderIncomeStats() {
             html += `<div class="member-detail-list">`;
             const sorted = [...pRecords].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
             sorted.forEach(r => {
-                const expense = r.expense || 0;
                 const income = r.income || 0;
                 const goods = r.goods || 0;
                 const note = r.note || '';
                 let amt = '';
-                if (expense > 0) amt += `<span class="cost">-¥${toFixed(expense)}</span>`;
                 if (income > 0) amt += `<span class="income">+¥${toFixed(income)}</span>`;
                 if (goods > 0) amt += `<span class="goods">货款 ¥${toFixed(goods)}</span>`;
                 if (!amt) amt = `<span>—</span>`;
@@ -420,21 +424,19 @@ function renderIncomeStats() {
     });
     incomeStatsContainer.innerHTML = html;
 
-    const allExpense = dayRecords.reduce((s, r) => s + (r.expense || 0), 0);
     const allIncome = dayRecords.reduce((s, r) => s + (r.income || 0), 0);
     const allGoods = dayRecords.reduce((s, r) => s + (r.goods || 0), 0);
     incomeGrandTotal.innerHTML = `
-        <div class="item">总支出 <span class="num cost">¥${toFixed(allExpense)}</span></div>
         <div class="item">总收入 <span class="num income">¥${toFixed(allIncome)}</span></div>
         <div class="item">总货款 <span class="num goods">¥${toFixed(allGoods)}</span></div>
     `;
 }
 
-// ---------- 收支全部记录 ----------
+// ---------- 账本全部记录 ----------
 function renderIncomeList() {
     const records = state.incomeRecords;
     if (!records || records.length === 0) {
-        incomeRecordList.innerHTML = `<div class="empty-state">还没有收支记录</div>`;
+        incomeRecordList.innerHTML = `<div class="empty-state">还没有记录</div>`;
         return;
     }
     const show = records.slice(0, 50);
@@ -442,11 +444,9 @@ function renderIncomeList() {
     show.forEach((r, idx) => {
         const name = r.person;
         const note = r.note || '';
-        const expense = r.expense || 0;
         const income = r.income || 0;
         const goods = r.goods || 0;
         let right = '';
-        if (expense > 0) right += `<span class="cost">-¥${toFixed(expense)}</span>`;
         if (income > 0) right += `<span class="income">+¥${toFixed(income)}</span>`;
         if (goods > 0) right += `<span class="goods">货款 ¥${toFixed(goods)}</span>`;
         if (!right) right = `<span class="empty">—</span>`;
@@ -471,13 +471,13 @@ function renderIncomeList() {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const id = this.dataset.id;
-            if (id && confirm('确定删除这条收支记录吗？')) deleteRecord(id, 'familyRecords');
+            if (id && confirm('确定删除这条记录吗？')) deleteRecord(id, 'familyRecords');
         });
     });
 }
 
 // ================================================================
-//  12. 渲染：家庭支出统计（按人、按日期）
+//  12. 渲染：支出统计（原家庭支出，只改标题文字）
 // ================================================================
 function renderFamilyStats() {
     const records = state.familyRecords;
@@ -534,11 +534,11 @@ function renderFamilyStats() {
     `;
 }
 
-// ---------- 家庭支出全部记录 ----------
+// ---------- 支出全部记录 ----------
 function renderFamilyList() {
     const records = state.familyRecords;
     if (!records || records.length === 0) {
-        familyRecordList.innerHTML = `<div class="empty-state">还没有家庭支出记录</div>`;
+        familyRecordList.innerHTML = `<div class="empty-state">还没有支出记录</div>`;
         return;
     }
     const show = records.slice(0, 50);
@@ -573,13 +573,13 @@ function renderFamilyList() {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const id = this.dataset.id;
-            if (id && confirm('确定删除这条家庭支出记录吗？')) deleteRecord(id, 'familyExpenses');
+            if (id && confirm('确定删除这条支出记录吗？')) deleteRecord(id, 'familyExpenses');
         });
     });
 }
 
 // ================================================================
-//  13. 渲染：债务统计（按人，无日期）
+//  13. 渲染：债务统计（不变）
 // ================================================================
 function renderDebtStats() {
     const records = state.debtRecords;
@@ -658,8 +658,8 @@ function deleteRecord(id, node) {
 }
 
 clearIncomeBtn.addEventListener('click', function() {
-    if (state.incomeRecords.length === 0) { showToast('没有收支记录'); return; }
-    if (confirm('确定清空所有收支记录吗？不可恢复！')) {
+    if (state.incomeRecords.length === 0) { showToast('没有记录'); return; }
+    if (confirm('确定清空所有账本记录吗？不可恢复！')) {
         db.ref('familyRecords').remove()
             .then(() => showToast('已清空'))
             .catch(() => showToast('清空失败'));
@@ -667,8 +667,8 @@ clearIncomeBtn.addEventListener('click', function() {
 });
 
 clearFamilyBtn.addEventListener('click', function() {
-    if (state.familyRecords.length === 0) { showToast('没有家庭支出记录'); return; }
-    if (confirm('确定清空所有家庭支出记录吗？不可恢复！')) {
+    if (state.familyRecords.length === 0) { showToast('没有支出记录'); return; }
+    if (confirm('确定清空所有支出记录吗？不可恢复！')) {
         db.ref('familyExpenses').remove()
             .then(() => showToast('已清空'))
             .catch(() => showToast('清空失败'));
@@ -694,12 +694,11 @@ setTimeout(() => {
     checkUpdateModal();
 }, 500);
 
-// 输入框跳转（收支）
-expenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); incomeAmtInput.focus(); } });
+// 输入框跳转（账本）
 incomeAmtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goodsInput.focus(); } });
 goodsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); noteInput.focus(); } });
 
-// 输入框跳转（家庭支出）
+// 输入框跳转（支出）
 personalExpenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); familyExpenseInput.focus(); } });
 familyExpenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); familyNoteInput.focus(); } });
 
@@ -707,7 +706,7 @@ familyExpenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') {
 debtAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); debtGoodsAmount.focus(); } });
 debtGoodsAmount.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); debtNote.focus(); } });
 
-// 点击统计卡片切换人员（收支模块）
+// 点击统计卡片切换人员（账本模块）
 incomeStatsContainer.addEventListener('click', (e) => {
     const card = e.target.closest('.member-stat-card');
     if (!card) return;
@@ -721,4 +720,4 @@ incomeStatsContainer.addEventListener('click', (e) => {
     }
 });
 
-console.log('✅ 三模块：收支账本 + 家庭支出 + 债务（v1.0 无映射版）已启动！');
+console.log('✅ 三模块：账本（无支出）+ 支出（原家庭支出）+ 债务（v0.12）已启动！');
