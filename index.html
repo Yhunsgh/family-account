@@ -18,7 +18,7 @@
         </div>
     </div>
 
-    <!-- ==================== 三栏主功能区 ==================== -->
+    <!-- ==================== 三栏主功能区（flex 不等高） ==================== -->
     <div class="triple-col">
         <!-- ===== 模块1：账本（收入+货款） ===== -->
         <div class="module-box income-module">
@@ -100,7 +100,7 @@
             </div>
         </div>
 
-        <!-- ===== 模块3：债务（欠款+货款欠款） ===== -->
+        <!-- ===== 模块3：债务（欠款+货款欠款）+ 还款 ===== -->
         <div class="module-box debt-module">
             <div class="module-header">
                 <h2>债务</h2>
@@ -126,13 +126,45 @@
                 </div>
                 <button class="btn-submit" id="debtSubmitBtn">记录</button>
             </div>
+
             <div class="stats-section" id="debtStats"></div>
+
             <div class="history-section">
                 <div class="history-header">
                     <div class="section-label">全部债务记录</div>
                     <button class="clear-btn" id="clearDebtBtn">清空全部</button>
                 </div>
                 <div class="record-list" id="debtRecordList"></div>
+            </div>
+
+            <!-- ========== 还款功能区（放在全部债务记录下方） ========== -->
+            <div class="repayment-section">
+                <div class="repayment-header">
+                    <span class="repayment-title">还款</span>
+                </div>
+                <div class="repayment-body">
+                    <div class="repayment-row">
+                        <div class="field">
+                            <label>还款金额 (¥)</label>
+                            <div class="currency"><input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label>扣款类型</label>
+                            <select id="repaymentType">
+                                <option value="amount">欠款</option>
+                                <option value="goodsAmount">货款欠款</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>搜索备注（匹配债务记录）</label>
+                        <input type="text" id="repaymentSearch" placeholder="输入关键词搜索，留空显示无备注记录" />
+                    </div>
+                    <div class="repayment-results" id="repaymentResults">
+                        <div class="empty-state">输入关键词搜索债务记录</div>
+                    </div>
+                    <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
+                </div>
             </div>
         </div>
     </div>
@@ -145,7 +177,7 @@
 <div class="modal-overlay" id="updateModal">
     <div class="modal-box">
         <div class="modal-header">
-            <span class="modal-title">📢 更新公告</span>
+            <span class="modal-title">更新公告</span>
         </div>
         <div class="modal-body">
             <div class="version-info">
@@ -154,10 +186,6 @@
             <ul class="update-list" id="updateList">
                 <!-- 由 JavaScript 动态填充 -->
             </ul>
-            <label class="modal-checkbox">
-                <input type="checkbox" id="dontShowAgain" />
-                本次更新不再提示
-            </label>
         </div>
         <div class="modal-footer">
             <button class="modal-btn" id="modalConfirmBtn">确认</button>
@@ -165,7 +193,7 @@
     </div>
 </div>
 
-<!-- ==================== 页脚：版本号（由 JS 动态注入） ==================== -->
+<!-- ==================== 页脚：版本号 ==================== -->
 <footer class="app-footer">
     当前版本：<span id="version"></span>
 </footer>
@@ -173,7 +201,6 @@
 <!-- ==================== 第三方库 & 应用脚本 ==================== -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<!-- 版本与更新日志配置文件（必须在 script.js 之前加载） -->
 <script src="update-log.js"></script>
 <script src="script.js"></script>
 
