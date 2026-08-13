@@ -20,7 +20,7 @@
 
     <!-- 三栏容器 -->
     <div class="triple-col">
-        <!-- ===== 左：账本（原收支账本，删除支出） ===== -->
+        <!-- ===== 左：账本 ===== -->
         <div class="module-box income-module">
             <div class="module-header">
                 <h2>账本</h2>
@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <!-- ===== 中：支出（原家庭支出，仅改标题） ===== -->
+        <!-- ===== 中：支出 ===== -->
         <div class="module-box family-module">
             <div class="module-header">
                 <h2>支出</h2>
@@ -162,11 +162,13 @@
 </div>
 
 <footer class="app-footer">
-    当前版本：<span id="version">v0.12</span>
+    当前版本：<span id="version"></span>
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<!-- 版本与更新日志配置文件 -->
+<script src="update-log.js"></script>
 <script src="script.js"></script>
 
 </body>
