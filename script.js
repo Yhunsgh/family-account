@@ -49,7 +49,6 @@ const state = {
     incomeDate: new Date().toISOString().slice(0, 10),
     familyDate: new Date().toISOString().slice(0, 10),
     debtDate: new Date().toISOString().slice(0, 10),
-    // 还款相关
     selectedDebtId: null,
     repaymentSearchKeyword: '',
 };
@@ -60,10 +59,8 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-// ---- 人员按钮 ----
 const personBtns = $$('.person-btn');
 
-// ---- 账本模块 ----
 const incomeAmtInput = $('#incomeAmt');
 const goodsInput = $('#goodsAmt');
 const noteInput = $('#noteInput');
@@ -74,7 +71,6 @@ const incomeRecordList = $('#incomeRecordList');
 const incomeDateInput = $('#incomeDate');
 const clearIncomeBtn = $('#clearIncomeBtn');
 
-// ---- 支出模块 ----
 const personalExpenseInput = $('#personalExpense');
 const familyExpenseInput = $('#familyExpense');
 const familyNoteInput = $('#familyNote');
@@ -85,7 +81,6 @@ const familyRecordList = $('#familyRecordList');
 const familyDateInput = $('#familyDate');
 const clearFamilyBtn = $('#clearFamilyBtn');
 
-// ---- 债务模块 ----
 const debtAmount = $('#debtAmount');
 const debtGoodsAmount = $('#debtGoodsAmount');
 const debtNote = $('#debtNote');
@@ -95,7 +90,6 @@ const debtStats = $('#debtStats');
 const debtDateInput = $('#debtDate');
 const clearDebtBtn = $('#clearDebtBtn');
 
-// ---- 还款功能区 ----
 const repaymentAmount = $('#repaymentAmount');
 const repaymentType = $('#repaymentType');
 const repaymentSearch = $('#repaymentSearch');
@@ -821,7 +815,7 @@ setTimeout(() => {
     checkUpdateModal();
 }, 500);
 
-// ---- 键盘跳转 ----
+// 键盘跳转
 incomeAmtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goodsInput.focus(); } });
 goodsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); noteInput.focus(); } });
 personalExpenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); familyExpenseInput.focus(); } });
@@ -836,7 +830,7 @@ repaymentAmount.addEventListener('keydown', (e) => {
     }
 });
 
-// ---- 点击统计卡片切换人员 ----
+// 点击统计卡片切换人员
 incomeStatsContainer.addEventListener('click', (e) => {
     const card = e.target.closest('.member-stat-card');
     if (!card) return;

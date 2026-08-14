@@ -18,129 +18,134 @@
         </div>
     </div>
 
-    <!-- ==================== 三栏主功能区（flex 不等高） ==================== -->
+    <!-- ==================== 三栏等宽布局（顶部对齐） ==================== -->
     <div class="triple-col">
-        <!-- ===== 模块1：账本（收入+货款） ===== -->
-        <div class="module-box income-module">
-            <div class="module-header">
-                <h2>账本</h2>
-                <div class="date-picker">
-                    日期：
-                    <input type="date" id="incomeDate" />
-                </div>
-            </div>
-            <div class="input-group">
-                <div class="input-row">
-                    <div class="field">
-                        <label>收入 (¥)</label>
-                        <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
-                    </div>
-                    <div class="field">
-                        <label>货款 (¥)</label>
-                        <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
+        <!-- ===== 列1：账本 ===== -->
+        <div class="col">
+            <div class="module-box income-module">
+                <div class="module-header">
+                    <h2>账本</h2>
+                    <div class="date-picker">
+                        日期：
+                        <input type="date" id="incomeDate" />
                     </div>
                 </div>
-                <div class="field">
-                    <label>备注</label>
-                    <textarea id="noteInput" placeholder="请输入备注" rows="1"></textarea>
+                <div class="input-group">
+                    <div class="input-row">
+                        <div class="field">
+                            <label>收入 (¥)</label>
+                            <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label>货款 (¥)</label>
+                            <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>备注</label>
+                        <textarea id="noteInput" placeholder="请输入备注" rows="1"></textarea>
+                    </div>
+                    <button class="btn-submit" id="submitBtn">记录</button>
                 </div>
-                <button class="btn-submit" id="submitBtn">记录</button>
-            </div>
-            <div class="stats-section">
-                <div class="section-label">所选日期的明细</div>
-                <div id="incomeStatsContainer"></div>
-                <div class="grand-total" id="incomeGrandTotal"></div>
-            </div>
-            <div class="history-section">
-                <div class="history-header">
-                    <div class="section-label">全部记录</div>
-                    <button class="clear-btn" id="clearIncomeBtn">清空全部</button>
+                <div class="stats-section">
+                    <div class="section-label">所选日期的明细</div>
+                    <div id="incomeStatsContainer"></div>
+                    <div class="grand-total" id="incomeGrandTotal"></div>
                 </div>
-                <div class="record-list" id="incomeRecordList"></div>
+                <div class="history-section">
+                    <div class="history-header">
+                        <div class="section-label">全部记录</div>
+                        <button class="clear-btn" id="clearIncomeBtn">清空全部</button>
+                    </div>
+                    <div class="record-list" id="incomeRecordList"></div>
+                </div>
             </div>
         </div>
 
-        <!-- ===== 模块2：支出（个人+家庭） ===== -->
-        <div class="module-box family-module">
-            <div class="module-header">
-                <h2>支出</h2>
-                <div class="date-picker">
-                    日期：
-                    <input type="date" id="familyDate" />
-                </div>
-            </div>
-            <div class="input-group">
-                <div class="input-row">
-                    <div class="field">
-                        <label>个人支出 (¥)</label>
-                        <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" /></div>
-                    </div>
-                    <div class="field">
-                        <label>家庭支出 (¥)</label>
-                        <div class="currency"><input type="number" id="familyExpense" placeholder="0.00" step="0.01" min="0" /></div>
+        <!-- ===== 列2：支出 ===== -->
+        <div class="col">
+            <div class="module-box family-module">
+                <div class="module-header">
+                    <h2>支出</h2>
+                    <div class="date-picker">
+                        日期：
+                        <input type="date" id="familyDate" />
                     </div>
                 </div>
-                <div class="field">
-                    <label>备注</label>
-                    <textarea id="familyNote" placeholder="请输入备注" rows="1"></textarea>
+                <div class="input-group">
+                    <div class="input-row">
+                        <div class="field">
+                            <label>个人支出 (¥)</label>
+                            <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label>家庭支出 (¥)</label>
+                            <div class="currency"><input type="number" id="familyExpense" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>备注</label>
+                        <textarea id="familyNote" placeholder="请输入备注" rows="1"></textarea>
+                    </div>
+                    <button class="btn-submit" id="familySubmitBtn">记录</button>
                 </div>
-                <button class="btn-submit" id="familySubmitBtn">记录</button>
-            </div>
-            <div class="stats-section">
-                <div class="section-label">所选日期的明细</div>
-                <div id="familyStatsContainer"></div>
-                <div class="grand-total" id="familyGrandTotal"></div>
-            </div>
-            <div class="history-section">
-                <div class="history-header">
-                    <div class="section-label">全部支出记录</div>
-                    <button class="clear-btn" id="clearFamilyBtn">清空全部</button>
+                <div class="stats-section">
+                    <div class="section-label">所选日期的明细</div>
+                    <div id="familyStatsContainer"></div>
+                    <div class="grand-total" id="familyGrandTotal"></div>
                 </div>
-                <div class="record-list" id="familyRecordList"></div>
+                <div class="history-section">
+                    <div class="history-header">
+                        <div class="section-label">全部支出记录</div>
+                        <button class="clear-btn" id="clearFamilyBtn">清空全部</button>
+                    </div>
+                    <div class="record-list" id="familyRecordList"></div>
+                </div>
             </div>
         </div>
 
-        <!-- ===== 模块3：债务（欠款+货款欠款）+ 还款 ===== -->
-        <div class="module-box debt-module">
-            <div class="module-header">
-                <h2>债务</h2>
-                <div class="date-picker">
-                    日期：
-                    <input type="date" id="debtDate" />
-                </div>
-            </div>
-            <div class="input-group">
-                <div class="input-row">
-                    <div class="field">
-                        <label>欠款 (¥)</label>
-                        <div class="currency"><input type="number" id="debtAmount" placeholder="0.00" step="0.01" min="0" /></div>
-                    </div>
-                    <div class="field">
-                        <label>货款欠款 (¥)</label>
-                        <div class="currency"><input type="number" id="debtGoodsAmount" placeholder="0.00" step="0.01" min="0" /></div>
+        <!-- ===== 列3：债务 + 还款（独立模块） ===== -->
+        <div class="col">
+            <!-- 债务框 -->
+            <div class="module-box debt-module">
+                <div class="module-header">
+                    <h2>债务</h2>
+                    <div class="date-picker">
+                        日期：
+                        <input type="date" id="debtDate" />
                     </div>
                 </div>
-                <div class="field">
-                    <label>备注</label>
-                    <textarea id="debtNote" placeholder="请输入备注" rows="1"></textarea>
+                <div class="input-group">
+                    <div class="input-row">
+                        <div class="field">
+                            <label>欠款 (¥)</label>
+                            <div class="currency"><input type="number" id="debtAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label>货款欠款 (¥)</label>
+                            <div class="currency"><input type="number" id="debtGoodsAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>备注</label>
+                        <textarea id="debtNote" placeholder="请输入备注" rows="1"></textarea>
+                    </div>
+                    <button class="btn-submit" id="debtSubmitBtn">记录</button>
                 </div>
-                <button class="btn-submit" id="debtSubmitBtn">记录</button>
+                <div class="stats-section" id="debtStats"></div>
+                <div class="history-section">
+                    <div class="history-header">
+                        <div class="section-label">全部债务记录</div>
+                        <button class="clear-btn" id="clearDebtBtn">清空全部</button>
+                    </div>
+                    <div class="record-list" id="debtRecordList"></div>
+                </div>
             </div>
 
-            <div class="stats-section" id="debtStats"></div>
-
-            <div class="history-section">
-                <div class="history-header">
-                    <div class="section-label">全部债务记录</div>
-                    <button class="clear-btn" id="clearDebtBtn">清空全部</button>
-                </div>
-                <div class="record-list" id="debtRecordList"></div>
-            </div>
-
-            <!-- ========== 还款功能区（放在全部债务记录下方） ========== -->
-            <div class="repayment-section">
-                <div class="repayment-header">
-                    <span class="repayment-title">还款</span>
+            <!-- ===== 还款模块（独立，与债务框平级） ===== -->
+            <div class="module-box repayment-module">
+                <div class="module-header">
+                    <h2>还款</h2>
                 </div>
                 <div class="repayment-body">
                     <div class="repayment-row">
