@@ -12,18 +12,16 @@
 <div id="loginPage" class="login-page">
     <div class="login-card">
         <h1>账本</h1>
-        <p class="login-sub">使用邮箱和密码登录 / 自动注册</p>
+        <p class="login-sub">请输入账号密码登录</p>
         <div class="login-field">
-            <label>邮箱</label>
-            <!-- 已移除默认值，用户需要自行输入 -->
-            <input type="email" id="loginUsername" placeholder="your@email.com" />
+            <label>账号</label>
+            <input type="text" id="loginUsername" placeholder="admin" value="admin" />
         </div>
         <div class="login-field">
             <label>密码</label>
-            <!-- 已移除默认值，用户需要自行输入 -->
-            <input type="password" id="loginPassword" placeholder="至少6位" />
+            <input type="password" id="loginPassword" placeholder="请输入密码" value="admin123" />
         </div>
-        <button class="login-btn" id="loginBtn">登录 / 注册</button>
+        <button class="login-btn" id="loginBtn">登 录</button>
         <div class="login-error" id="loginError"></div>
     </div>
 </div>
@@ -72,6 +70,7 @@
                     <button class="btn-submit" id="submitBtn">记录</button>
                 </div>
                 <div class="stats-section">
+                    <!-- 全局统计容器（本月+总计） -->
                     <div id="incomeGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="incomeStatsContainer"></div>
@@ -115,6 +114,7 @@
                     <button class="btn-submit" id="familySubmitBtn">记录</button>
                 </div>
                 <div class="stats-section">
+                    <!-- 全局统计容器 -->
                     <div id="familyGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="familyStatsContainer"></div>
@@ -158,9 +158,11 @@
                     <button class="btn-submit" id="debtSubmitBtn">记录</button>
                 </div>
                 <div class="stats-section" id="debtStats">
+                    <!-- 全局统计容器 -->
                     <div id="debtGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="debtStatsContainer"></div>
+                    <!-- 债务模块没有底部总计，但保留容器以兼容 -->
                 </div>
                 <div class="history-section">
                     <div class="history-header">
@@ -259,7 +261,6 @@
 <!-- ==================== 第三方库 & 应用脚本 ==================== -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="firebase.js"></script>
 <script src="update-log.js"></script>
 <script src="script.js"></script>
