@@ -8,27 +8,8 @@
 </head>
 <body>
 
-<!-- ==================== 登录页 ==================== -->
-<div id="loginPage" class="login-page">
-    <div class="login-card">
-        <h1>账本</h1>
-        <p class="login-sub">请输入账号密码登录</p>
-        <div class="login-field">
-            <label>账号</label>
-            <input type="text" id="loginUsername" placeholder="admin" value="admin" />
-        </div>
-        <div class="login-field">
-            <label>密码</label>
-            <input type="password" id="loginPassword" placeholder="请输入密码" value="admin123" />
-        </div>
-        <button class="login-btn" id="loginBtn">登 录</button>
-        <div class="login-error" id="loginError"></div>
-    </div>
-</div>
-
 <!-- ==================== 主应用 ==================== -->
-<div class="app" id="mainApp" style="display:none;">
-
+<div class="app" id="mainApp">
     <!-- ==================== 人员切换 + 管理入口 ==================== -->
     <div class="person-section">
         <div class="section-label">
@@ -70,7 +51,6 @@
                     <button class="btn-submit" id="submitBtn">记录</button>
                 </div>
                 <div class="stats-section">
-                    <!-- 全局统计容器（本月+总计） -->
                     <div id="incomeGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="incomeStatsContainer"></div>
@@ -114,7 +94,6 @@
                     <button class="btn-submit" id="familySubmitBtn">记录</button>
                 </div>
                 <div class="stats-section">
-                    <!-- 全局统计容器 -->
                     <div id="familyGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="familyStatsContainer"></div>
@@ -158,11 +137,9 @@
                     <button class="btn-submit" id="debtSubmitBtn">记录</button>
                 </div>
                 <div class="stats-section" id="debtStats">
-                    <!-- 全局统计容器 -->
                     <div id="debtGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="debtStatsContainer"></div>
-                    <!-- 债务模块没有底部总计，但保留容器以兼容 -->
                 </div>
                 <div class="history-section">
                     <div class="history-header">
@@ -205,9 +182,9 @@
         </div>
     </div>
 
-    <!-- ==================== 退出按钮 ==================== -->
+    <!-- ==================== 退出按钮（改为刷新/重置，可选） ==================== -->
     <div style="text-align:right; margin-top:16px;">
-        <button class="logout-btn" id="logoutBtn">退出登录</button>
+        <button class="logout-btn" id="refreshBtn">刷新数据</button>
     </div>
 </div>
 
