@@ -8,13 +8,37 @@
 </head>
 <body>
 
-<div class="app">
-    <!-- ==================== 人员切换 ==================== -->
+<!-- ==================== 登录页 ==================== -->
+<div id="loginPage" class="login-page">
+    <div class="login-card">
+        <h1>账本</h1>
+        <p class="login-sub">使用邮箱和密码登录 / 自动注册</p>
+        <div class="login-field">
+            <label>邮箱</label>
+            <!-- 已移除默认值，用户需要自行输入 -->
+            <input type="email" id="loginUsername" placeholder="your@email.com" />
+        </div>
+        <div class="login-field">
+            <label>密码</label>
+            <!-- 已移除默认值，用户需要自行输入 -->
+            <input type="password" id="loginPassword" placeholder="至少6位" />
+        </div>
+        <button class="login-btn" id="loginBtn">登录 / 注册</button>
+        <div class="login-error" id="loginError"></div>
+    </div>
+</div>
+
+<!-- ==================== 主应用 ==================== -->
+<div class="app" id="mainApp" style="display:none;">
+
+    <!-- ==================== 人员切换 + 管理入口 ==================== -->
     <div class="person-section">
-        <div class="section-label">谁在记账？ <span class="badge">点击切换</span></div>
+        <div class="section-label">
+            <span>谁在记账？ <span class="badge">点击切换</span></span>
+            <button class="manage-btn" id="manageMemberBtn">管理成员</button>
+        </div>
         <div class="person-selector" id="personSelector">
-            <button class="person-btn active" data-person="刘力伟">刘力伟</button>
-            <button class="person-btn" data-person="郑少容">郑少容</button>
+            <!-- 动态由 JavaScript 生成 -->
         </div>
     </div>
 
@@ -48,6 +72,7 @@
                     <button class="btn-submit" id="submitBtn">记录</button>
                 </div>
                 <div class="stats-section">
+                    <div id="incomeGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="incomeStatsContainer"></div>
                     <div class="grand-total" id="incomeGrandTotal"></div>
@@ -90,6 +115,7 @@
                     <button class="btn-submit" id="familySubmitBtn">记录</button>
                 </div>
                 <div class="stats-section">
+                    <div id="familyGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="familyStatsContainer"></div>
                     <div class="grand-total" id="familyGrandTotal"></div>
@@ -104,9 +130,8 @@
             </div>
         </div>
 
-        <!-- ===== 列3：债务 + 还款（独立模块） ===== -->
+        <!-- ===== 列3：债务 + 还款 ===== -->
         <div class="col">
-            <!-- 债务框 -->
             <div class="module-box debt-module">
                 <div class="module-header">
                     <h2>债务</h2>
@@ -132,7 +157,11 @@
                     </div>
                     <button class="btn-submit" id="debtSubmitBtn">记录</button>
                 </div>
-                <div class="stats-section" id="debtStats"></div>
+                <div class="stats-section" id="debtStats">
+                    <div id="debtGlobalStats" class="global-stats-container"></div>
+                    <div class="section-label">所选日期的明细</div>
+                    <div id="debtStatsContainer"></div>
+                </div>
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部债务记录</div>
@@ -142,7 +171,7 @@
                 </div>
             </div>
 
-            <!-- ===== 还款模块（独立，与债务框平级） ===== -->
+            <!-- ===== 还款模块 ===== -->
             <div class="module-box repayment-module">
                 <div class="module-header">
                     <h2>还款</h2>
@@ -170,6 +199,30 @@
                     </div>
                     <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 退出按钮 ==================== -->
+    <div style="text-align:right; margin-top:16px;">
+        <button class="logout-btn" id="logoutBtn">退出登录</button>
+    </div>
+</div>
+
+<!-- ==================== 成员管理模态框 ==================== -->
+<div class="modal-overlay" id="memberModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title">成员管理</span>
+            <button class="modal-close" id="memberModalClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="member-list" id="memberList">
+                <!-- 动态渲染 -->
+            </div>
+            <div class="member-add">
+                <input type="text" id="newMemberInput" placeholder="输入新成员姓名" />
+                <button class="btn-submit" id="addMemberBtn" style="width:auto; padding:8px 16px; margin-top:8px;">添加</button>
             </div>
         </div>
     </div>
@@ -206,6 +259,8 @@
 <!-- ==================== 第三方库 & 应用脚本 ==================== -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="firebase.js"></script>
 <script src="update-log.js"></script>
 <script src="script.js"></script>
 

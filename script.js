@@ -1,48 +1,19 @@
 /**
  * ================================================================
- *  家庭账本应用 - 主脚本
- *  技术栈：Firebase Realtime Database（无后端）
- *  功能模块：账本（收入+货款）、支出（个人+家庭）、债务（欠款+货款欠款）
- *  核心特性：人员切换、日期筛选、实时数据同步、增删改查、还款功能
+ *  家庭账本应用 - 主脚本（已集成 Firebase Auth + 数据隔离）
  * ================================================================
  */
 
 // ================================================================
-//  1.  Firebase 配置
+//  1.  Firebase 全局变量（由 firebase.js 注入）
 // ================================================================
-const firebaseConfig = {
-    apiKey: "AIzaSyA42r5qGK6t5h-Ggq7sC0m9pCv90yMIOI",
-    authDomain: "family-account-book-22cc3.firebaseapp.com",
-    databaseURL: "https://family-account-book-22cc3-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "family-account-book-22cc3",
-    storageBucket: "family-account-book-22cc3.firebasestorage.app",
-    messagingSenderId: "883258053961",
-    appId: "1:883258053961:web:44d29f6635598b6a22f698"
-};
-
-let db = null;
-let isFirebaseReady = false;
-
-try {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    isFirebaseReady = true;
-    console.log("Firebase 初始化成功");
-} catch (err) {
-    console.error("Firebase 初始化失败:", err);
-    showToast("Firebase 配置有误，请检查 config");
-}
 
 // ================================================================
-//  2.  人员常量
-// ================================================================
-const PERSON_NAMES = ['刘力伟', '郑少容'];
-
-// ================================================================
-//  3.  应用状态
+//  2.  应用状态
 // ================================================================
 const state = {
-    currentPerson: '刘力伟',
+    currentPerson: null,
+    members: [],
     incomeRecords: [],
     familyRecords: [],
     debtRecords: [],
@@ -59,7 +30,21 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-const personBtns = $$('.person-btn');
+const loginPage = $('#loginPage');
+const mainApp = $('#mainApp');
+const loginUsername = $('#loginUsername');
+const loginPassword = $('#loginPassword');
+const loginBtn = $('#loginBtn');
+const loginError = $('#loginError');
+const logoutBtn = $('#logoutBtn');
+
+const personSelector = $('#personSelector');
+const manageMemberBtn = $('#manageMemberBtn');
+const memberModal = $('#memberModal');
+const memberModalClose = $('#memberModalClose');
+const memberList = $('#memberList');
+const newMemberInput = $('#newMemberInput');
+const addMemberBtn = $('#addMemberBtn');
 
 const incomeAmtInput = $('#incomeAmt');
 const goodsInput = $('#goodsAmt');
@@ -86,7 +71,7 @@ const debtGoodsAmount = $('#debtGoodsAmount');
 const debtNote = $('#debtNote');
 const debtSubmitBtn = $('#debtSubmitBtn');
 const debtRecordList = $('#debtRecordList');
-const debtStats = $('#debtStats');
+const debtStatsContainer = $('#debtStatsContainer');
 const debtDateInput = $('#debtDate');
 const clearDebtBtn = $('#clearDebtBtn');
 
@@ -96,8 +81,118 @@ const repaymentSearch = $('#repaymentSearch');
 const repaymentResults = $('#repaymentResults');
 const repaymentSubmitBtn = $('#repaymentSubmitBtn');
 
+const incomeGlobalStats = $('#incomeGlobalStats');
+const familyGlobalStats = $('#familyGlobalStats');
+const debtGlobalStats = $('#debtGlobalStats');
+
 // ================================================================
-//  4.  工具函数
+//  3.  辅助函数（新增：获取当前用户 UID，构建隔离路径）
+// ================================================================
+function getCurrentUid() {
+    const user = firebase.auth().currentUser;
+    return user ? user.uid : null;
+}
+
+/** 生成带用户隔离的数据库路径 */
+function getDbPath(subPath) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('用户未登录，无法操作数据库');
+    return `users/${uid}/${subPath}`;
+}
+
+// ================================================================
+//  4.  登录逻辑（使用 Firebase Auth，支持自动注册）
+// ================================================================
+function checkLogin() {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        // 已登录
+        loginPage.style.display = 'none';
+        mainApp.style.display = 'block';
+        loginError.textContent = '';
+        initApp();
+    } else {
+        loginPage.style.display = 'flex';
+        mainApp.style.display = 'none';
+        loginError.textContent = '';
+    }
+}
+
+// 监听 Auth 状态变化（自动响应登录/登出）
+firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+        // 已登录，但可能页面还没初始化，调用 checkLogin 确保界面切换
+        checkLogin();
+    } else {
+        // 未登录
+        loginPage.style.display = 'flex';
+        mainApp.style.display = 'none';
+        // 如果之前有监听数据库，需要清理？实际我们会在 initApp 中重新监听，无所谓。
+    }
+});
+
+loginBtn.addEventListener('click', function() {
+    const email = loginUsername.value.trim();
+    const pass = loginPassword.value.trim();
+
+    if (!email || !pass) {
+        loginError.textContent = '请填写邮箱和密码';
+        return;
+    }
+    if (pass.length < 6) {
+        loginError.textContent = '密码至少6位';
+        return;
+    }
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = '处理中...';
+    loginError.textContent = '';
+
+    // 1. 尝试登录
+    firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then(() => {
+            // 登录成功，由 onAuthStateChanged 处理
+            loginBtn.disabled = false;
+            loginBtn.textContent = '登录 / 注册';
+        })
+        .catch((error) => {
+            if (error.code === 'auth/user-not-found') {
+                // 2. 用户不存在，自动注册
+                firebase.auth().createUserWithEmailAndPassword(email, pass)
+                    .then(() => {
+                        // 注册成功，自动登录
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = '登录 / 注册';
+                    })
+                    .catch((regError) => {
+                        loginError.textContent = '注册失败：' + regError.message;
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = '登录 / 注册';
+                    });
+            } else {
+                loginError.textContent = '登录失败：' + error.message;
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登录 / 注册';
+            }
+        });
+});
+
+loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
+loginUsername.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
+
+logoutBtn.addEventListener('click', function() {
+    firebase.auth().signOut()
+        .then(() => {
+            // 退出后界面由 onAuthStateChanged 处理
+            location.reload(); // 简单刷新重置状态
+        })
+        .catch((err) => {
+            showToast('退出失败：' + err.message);
+        });
+});
+
+// ================================================================
+//  5.  工具函数（保持不变）
 // ================================================================
 function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -117,23 +212,186 @@ function showToast(msg, duration = 2000) {
 }
 function getTodayStr() { return new Date().toISOString().slice(0, 10); }
 
+function getMonthKey(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function getCurrentMonthKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
 // ================================================================
-//  5.  人员切换
+//  6.  人员管理（动态成员）— 路径已改为 getDbPath
 // ================================================================
-personBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-        personBtns.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        state.currentPerson = this.dataset.person;
+function watchMembers() {
+    if (!isFirebaseReady) { showToast('数据库未连接'); return; }
+    try {
+        const path = getDbPath('members');
+        db.ref(path).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                // 首次使用，初始化默认成员
+                db.ref(path).push('刘力伟');
+                db.ref(path).push('郑少容');
+                return;
+            }
+            const members = Object.values(data).filter(v => typeof v === 'string' && v.trim() !== '');
+            state.members = members;
+            if (!state.currentPerson || !members.includes(state.currentPerson)) {
+                state.currentPerson = members.length > 0 ? members[0] : null;
+            }
+            renderPersonButtons();
+            renderAll();
+            renderRepaymentResults();
+        }, (err) => {
+            console.error('读取 members 失败:', err);
+            showToast('读取成员列表失败');
+        });
+    } catch (e) {
+        showToast(e.message);
+    }
+}
+
+function renderPersonButtons() {
+    const members = state.members;
+    if (!members || members.length === 0) {
+        personSelector.innerHTML = '<div class="empty-state">暂无成员，请添加</div>';
+        return;
+    }
+    let html = '';
+    members.forEach(name => {
+        const active = (name === state.currentPerson) ? 'active' : '';
+        html += `<button class="person-btn ${active}" data-person="${name}">${name}</button>`;
     });
+    personSelector.innerHTML = html;
+    personSelector.querySelectorAll('.person-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            personSelector.querySelectorAll('.person-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            state.currentPerson = this.dataset.person;
+            renderAll();
+        });
+    });
+}
+
+manageMemberBtn.addEventListener('click', function() {
+    renderMemberList();
+    memberModal.classList.add('active');
 });
-personBtns.forEach(btn => {
-    if (btn.dataset.person === state.currentPerson) btn.classList.add('active');
+memberModalClose.addEventListener('click', function() {
+    memberModal.classList.remove('active');
+});
+memberModal.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+});
+
+function renderMemberList() {
+    const members = state.members;
+    if (!members || members.length === 0) {
+        memberList.innerHTML = '<div class="empty-state">暂无成员</div>';
+        return;
+    }
+    let html = '';
+    members.forEach(name => {
+        html += `
+            <div class="member-item">
+                <span class="name">${name}</span>
+                <button class="del-member-btn" data-name="${name}">✕</button>
+            </div>
+        `;
+    });
+    memberList.innerHTML = html;
+    memberList.querySelectorAll('.del-member-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const name = this.dataset.name;
+            if (!confirm(`确定删除成员“${name}”吗？\n（历史记录不会删除，但将不再显示该成员的数据）`)) return;
+            try {
+                const path = getDbPath('members');
+                db.ref(path).orderByValue().equalTo(name).once('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const key = Object.keys(data)[0];
+                        db.ref(path + '/' + key).remove()
+                            .then(() => {
+                                showToast(`已删除成员 ${name}`);
+                                if (state.currentPerson === name) {
+                                    state.currentPerson = state.members.length > 0 ? state.members[0] : null;
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                showToast('删除失败');
+                            });
+                    }
+                });
+            } catch (e) {
+                showToast(e.message);
+            }
+        });
+    });
+}
+
+addMemberBtn.addEventListener('click', function() {
+    const name = newMemberInput.value.trim();
+    if (!name) { showToast('请输入姓名'); return; }
+    if (state.members.includes(name)) { showToast('成员已存在'); return; }
+    try {
+        const path = getDbPath('members');
+        db.ref(path).push(name)
+            .then(() => {
+                showToast(`已添加成员 ${name}`);
+                newMemberInput.value = '';
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('添加失败');
+            });
+    } catch (e) {
+        showToast(e.message);
+    }
+});
+newMemberInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addMemberBtn.click();
 });
 
 // ================================================================
-//  6.  通用渲染函数
+//  7.  通用渲染函数（无路径修改，只读 state）
 // ================================================================
+function renderGlobalStats(records, container, fields) {
+    if (!container) return;
+    if (!records || records.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    const currentMonthKey = getCurrentMonthKey();
+    let monthRecords = [];
+    records.forEach(r => {
+        const dateStr = r.date || new Date(r.createdAt).toISOString().slice(0, 10);
+        if (getMonthKey(dateStr) === currentMonthKey) {
+            monthRecords.push(r);
+        }
+    });
+
+    let html = `<div class="global-stats">`;
+    html += `<div class="stat-row">`;
+    html += `<span class="label">本月</span>`;
+    fields.forEach(f => {
+        const sum = monthRecords.reduce((s, r) => s + (r[f.key] || 0), 0);
+        html += `<span class="${f.class}">${f.label} ¥${toFixed(sum)}</span>`;
+    });
+    html += `</div>`;
+    html += `<div class="stat-row">`;
+    html += `<span class="label">总计</span>`;
+    fields.forEach(f => {
+        const sum = records.reduce((s, r) => s + (r[f.key] || 0), 0);
+        html += `<span class="${f.class}">${f.label} ¥${toFixed(sum)}</span>`;
+    });
+    html += `</div>`;
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
 function renderStatsGeneric(records, selectedDate, config) {
     const {
         container,
@@ -158,26 +416,27 @@ function renderStatsGeneric(records, selectedDate, config) {
         dayRecords = records.filter(r => r[dateKey] === selectedDate);
     }
 
-    let html = '';
+    let memberHtml = '';
 
     if (profitConfig) {
         const totalIncome = dayRecords.reduce((s, r) => s + (r[profitConfig.incomeKey] || 0), 0);
         const totalGoods = dayRecords.reduce((s, r) => s + (r[profitConfig.goodsKey] || 0), 0);
         const profit = totalIncome - totalGoods;
-        html += `<div class="profit-card">
+        memberHtml += `<div class="profit-card">
             <span class="profit-label">所选日期 (${selectedDate ? formatDate(selectedDate) : '全部'}) 盈利</span>
             <span class="profit-amount ${profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'zero'}">¥${toFixed(profit)}</span>
         </div>`;
     }
 
-    PERSON_NAMES.forEach(name => {
+    const members = state.members || [];
+    members.forEach(name => {
         const pRecords = dayRecords.filter(r => r[personKey_] === name);
         const totals = {};
         fields.forEach(f => {
             totals[f.key] = pRecords.reduce((s, r) => s + (r[f.key] || 0), 0);
         });
 
-        html += `<div class="member-stat-card">
+        memberHtml += `<div class="member-stat-card">
             <div class="member-stat-header">
                 <span class="name">${name}</span>
                 <span class="totals">
@@ -186,7 +445,7 @@ function renderStatsGeneric(records, selectedDate, config) {
             </div>`;
 
         if (showDetails && pRecords.length > 0) {
-            html += `<div class="member-detail-list">`;
+            memberHtml += `<div class="member-detail-list">`;
             const sorted = [...pRecords].sort((a, b) => (b[createdAtKey_] || 0) - (a[createdAtKey_] || 0));
             sorted.forEach(r => {
                 let amtHtml = '';
@@ -197,7 +456,7 @@ function renderStatsGeneric(records, selectedDate, config) {
                 if (!amtHtml) amtHtml = `<span>—</span>`;
                 const dateDisplay = r[dateKey] ? formatDate(r[dateKey]) : formatTime(r[createdAtKey_]);
                 const note = r[noteKey_] || '';
-                html += `<div class="detail-item">
+                memberHtml += `<div class="detail-item">
                     <div class="left">
                         <span class="date">${dateDisplay}</span>
                         ${note ? `<span class="note" title="${note}">${note}</span>` : ''}
@@ -205,14 +464,18 @@ function renderStatsGeneric(records, selectedDate, config) {
                     <div class="right">${amtHtml}</div>
                 </div>`;
             });
-            html += `</div>`;
+            memberHtml += `</div>`;
         } else if (showDetails && pRecords.length === 0) {
-            html += `<div class="member-detail-list"><div class="detail-empty">当天无记录</div></div>`;
+            memberHtml += `<div class="member-detail-list"><div class="detail-empty">当天无记录</div></div>`;
         }
-        html += `</div>`;
+        memberHtml += `</div>`;
     });
 
-    container.innerHTML = html || `<div class="empty-state">所选日期无记录</div>`;
+    if (!memberHtml) {
+        memberHtml = `<div class="empty-state">所选日期无记录</div>`;
+    }
+
+    container.innerHTML = memberHtml;
 
     if (grandTotalContainer) {
         const totals = {};
@@ -229,7 +492,7 @@ function renderStatsGeneric(records, selectedDate, config) {
 function renderListGeneric(records, container, config) {
     const {
         fields,
-        path,
+        path,      // 仅用于删除，但删除时我们会重新构造带隔离的路径
         dateKey,
         timeKey,
         personKey,
@@ -279,7 +542,7 @@ function renderListGeneric(records, container, config) {
 }
 
 // ================================================================
-//  7.  模块配置
+//  8.  模块配置（dbPath 仅作为逻辑标识，实际读写会用 getDbPath）
 // ================================================================
 const MODULES = {
     income: {
@@ -318,6 +581,7 @@ const MODULES = {
         clearBtn: clearIncomeBtn,
         recordsStateKey: 'incomeRecords',
         confirmMsg: '确定清空所有账本记录吗？不可恢复！',
+        globalContainer: incomeGlobalStats,
         submitConfig: {
             dbPath: 'familyRecords',
             fields: [
@@ -371,6 +635,7 @@ const MODULES = {
         clearBtn: clearFamilyBtn,
         recordsStateKey: 'familyRecords',
         confirmMsg: '确定清空所有支出记录吗？不可恢复！',
+        globalContainer: familyGlobalStats,
         submitConfig: {
             dbPath: 'familyExpenses',
             fields: [
@@ -391,7 +656,7 @@ const MODULES = {
     debt: {
         dbPath: 'debtRecords',
         statsConfig: {
-            container: debtStats,
+            container: debtStatsContainer,
             grandTotalContainer: null,
             fields: [
                 { key: 'amount', label: '欠款', class: 'cost' },
@@ -421,6 +686,7 @@ const MODULES = {
         clearBtn: clearDebtBtn,
         recordsStateKey: 'debtRecords',
         confirmMsg: '确定清空所有债务记录吗？不可恢复！',
+        globalContainer: debtGlobalStats,
         submitConfig: {
             dbPath: 'debtRecords',
             fields: [
@@ -441,16 +707,19 @@ const MODULES = {
 };
 
 // ================================================================
-//  8.  具体渲染函数
+//  9.  具体渲染函数（不变）
 // ================================================================
 function renderIncomeStats() {
     renderStatsGeneric(state.incomeRecords, state.incomeDate, MODULES.income.statsConfig);
+    renderGlobalStats(state.incomeRecords, MODULES.income.globalContainer, MODULES.income.statsConfig.fields);
 }
 function renderFamilyStats() {
     renderStatsGeneric(state.familyRecords, state.familyDate, MODULES.family.statsConfig);
+    renderGlobalStats(state.familyRecords, MODULES.family.globalContainer, MODULES.family.statsConfig.fields);
 }
 function renderDebtStats() {
     renderStatsGeneric(state.debtRecords, state.debtDate, MODULES.debt.statsConfig);
+    renderGlobalStats(state.debtRecords, MODULES.debt.globalContainer, MODULES.debt.statsConfig.fields);
 }
 
 function renderIncomeList() {
@@ -463,12 +732,23 @@ function renderDebtList() {
     renderListGeneric(state.debtRecords, debtRecordList, MODULES.debt.listConfig);
 }
 
+function renderAll() {
+    renderIncomeStats();
+    renderIncomeList();
+    renderFamilyStats();
+    renderFamilyList();
+    renderDebtStats();
+    renderDebtList();
+    renderRepaymentResults();
+}
+
 // ================================================================
-//  9.  提交逻辑
+//  10. 提交逻辑（使用 getDbPath）
 // ================================================================
 function submitRecord(config) {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     const person = state.currentPerson;
+    if (!person) { showToast('请先添加成员'); return; }
     const {
         dbPath,
         fields,
@@ -501,14 +781,21 @@ function submitRecord(config) {
     const btn = config.buttonDom;
     btn.disabled = true;
     btn.textContent = '提交中...';
-    const newRef = db.ref(dbPath).push();
-    newRef.set(record)
-        .then(() => {
-            showToast('记录成功！');
-            if (onSuccess) onSuccess();
-        })
-        .catch((err) => { console.error(err); showToast('提交失败'); })
-        .finally(() => { btn.disabled = false; btn.textContent = '记录'; });
+    try {
+        const path = getDbPath(dbPath);
+        const newRef = db.ref(path).push();
+        newRef.set(record)
+            .then(() => {
+                showToast('记录成功');
+                if (onSuccess) onSuccess();
+            })
+            .catch((err) => { console.error(err); showToast('提交失败'); })
+            .finally(() => { btn.disabled = false; btn.textContent = '记录'; });
+    } catch (e) {
+        showToast(e.message);
+        btn.disabled = false;
+        btn.textContent = '记录';
+    }
 }
 
 submitBtn.addEventListener('click', function() {
@@ -522,14 +809,19 @@ debtSubmitBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  10. 清除逻辑
+//  11. 清除逻辑（使用 getDbPath）
 // ================================================================
 function clearRecords(dbPath, records, confirmMsg) {
     if (!records || records.length === 0) { showToast('没有记录'); return; }
     if (confirm(confirmMsg)) {
-        db.ref(dbPath).remove()
-            .then(() => showToast('已清空'))
-            .catch(() => showToast('清空失败'));
+        try {
+            const path = getDbPath(dbPath);
+            db.ref(path).remove()
+                .then(() => showToast('已清空'))
+                .catch(() => showToast('清空失败'));
+        } catch (e) {
+            showToast(e.message);
+        }
     }
 }
 
@@ -544,7 +836,7 @@ clearDebtBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  11. 日期选择器
+//  12. 日期选择器（不变）
 // ================================================================
 const dateModules = ['income', 'family', 'debt'];
 dateModules.forEach(moduleKey => {
@@ -569,7 +861,7 @@ dateModules.forEach(moduleKey => {
 });
 
 // ================================================================
-//  12. 数据读取 & 实时更新
+//  13. 数据读取 & 实时更新（使用 getDbPath）
 // ================================================================
 function loadData() {
     if (!isFirebaseReady) {
@@ -602,30 +894,35 @@ function loadData() {
     ];
 
     dbModules.forEach(({ path, recordsStateKey, renderStats, renderList }) => {
-        db.ref(path).on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (!data) {
-                state[recordsStateKey] = [];
+        try {
+            const fullPath = getDbPath(path);
+            db.ref(fullPath).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    state[recordsStateKey] = [];
+                    renderStats();
+                    renderList();
+                    if (recordsStateKey === 'debtRecords') renderRepaymentResults();
+                    return;
+                }
+                const records = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                state[recordsStateKey] = records;
                 renderStats();
                 renderList();
                 if (recordsStateKey === 'debtRecords') renderRepaymentResults();
-                return;
-            }
-            const records = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-            state[recordsStateKey] = records;
-            renderStats();
-            renderList();
-            if (recordsStateKey === 'debtRecords') renderRepaymentResults();
-        }, (err) => {
-            console.error(err);
-            showToast(`读取 ${path} 数据失败`);
-        });
+            }, (err) => {
+                console.error(err);
+                showToast(`读取 ${path} 数据失败`);
+            });
+        } catch (e) {
+            showToast(e.message);
+        }
     });
 }
 
 // ================================================================
-//  13. 删除事件委托
+//  14. 删除事件委托（使用 getDbPath）
 // ================================================================
 document.addEventListener('click', function(e) {
     const delBtn = e.target.closest('.del-btn');
@@ -634,16 +931,20 @@ document.addEventListener('click', function(e) {
     const path = delBtn.dataset.path;
     if (id && path && confirm('确定删除这条记录吗？')) {
         if (!isFirebaseReady) { showToast('数据库未连接'); return; }
-        db.ref(`${path}/${id}`).remove()
-            .then(() => showToast('已删除'))
-            .catch(() => showToast('删除失败'));
+        try {
+            const fullPath = getDbPath(path);
+            db.ref(`${fullPath}/${id}`).remove()
+                .then(() => showToast('已删除'))
+                .catch(() => showToast('删除失败'));
+        } catch (e) {
+            showToast(e.message);
+        }
     }
 });
 
 // ================================================================
-//  14. 还款功能
+//  15. 还款功能（使用 getDbPath）
 // ================================================================
-
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
     state.repaymentSearchKeyword = keyword;
@@ -760,25 +1061,32 @@ repaymentSubmitBtn.addEventListener('click', function() {
     btn.disabled = true;
     btn.textContent = '还款中...';
 
-    db.ref(`debtRecords/${state.selectedDebtId}`).update(updateData)
-        .then(() => {
-            showToast(`还款成功！${typeLabel}减少 ¥${toFixed(amount)}`);
-            repaymentAmount.value = '';
-            state.selectedDebtId = null;
-            renderRepaymentResults();
-        })
-        .catch((err) => {
-            console.error(err);
-            showToast('还款失败，请重试');
-        })
-        .finally(() => {
-            btn.disabled = false;
-            btn.textContent = '确认还款';
-        });
+    try {
+        const fullPath = getDbPath('debtRecords');
+        db.ref(`${fullPath}/${state.selectedDebtId}`).update(updateData)
+            .then(() => {
+                showToast(`还款成功，${typeLabel}减少 ¥${toFixed(amount)}`);
+                repaymentAmount.value = '';
+                state.selectedDebtId = null;
+                renderRepaymentResults();
+            })
+            .catch((err) => {
+                console.error(err);
+                showToast('还款失败，请重试');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '确认还款';
+            });
+    } catch (e) {
+        showToast(e.message);
+        btn.disabled = false;
+        btn.textContent = '确认还款';
+    }
 });
 
 // ================================================================
-//  15. 更新公告逻辑
+//  16. 更新公告逻辑（不变）
 // ================================================================
 const modalOverlay = document.getElementById('updateModal');
 const oldVersionSpan = document.getElementById('oldVersion');
@@ -806,16 +1114,23 @@ modalConfirmBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  16. 启动 & 快捷键
+//  17. 启动 & 快捷键
 // ================================================================
-loadData();
-document.getElementById('version').textContent = APP_VERSION;
+function initApp() {
+    watchMembers();
+    loadData();
+    document.getElementById('version').textContent = APP_VERSION;
+    setTimeout(() => {
+        checkUpdateModal();
+    }, 500);
+}
 
-setTimeout(() => {
-    checkUpdateModal();
-}, 500);
+// 初始检查登录状态（由 onAuthStateChanged 触发，但页面加载时可能还没触发，先调一次）
+// 注意：onAuthStateChanged 会异步触发，所以这里调用 checkLogin 可以立即显示界面
+// 但 checkLogin 内部会判断 user 是否存在，若不存在则显示登录页。
+checkLogin();
 
-// 键盘跳转
+// 快捷键（保持不变）
 incomeAmtInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goodsInput.focus(); } });
 goodsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); noteInput.focus(); } });
 personalExpenseInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); familyExpenseInput.focus(); } });
@@ -830,16 +1145,17 @@ repaymentAmount.addEventListener('keydown', (e) => {
     }
 });
 
-// 点击统计卡片切换人员
-incomeStatsContainer.addEventListener('click', (e) => {
+document.addEventListener('click', function(e) {
     const card = e.target.closest('.member-stat-card');
     if (!card) return;
     const nameEl = card.querySelector('.member-stat-header .name');
     if (!nameEl) return;
     const name = nameEl.textContent.trim();
-    if (PERSON_NAMES.includes(name)) {
-        personBtns.forEach(b => b.classList.toggle('active', b.dataset.person === name));
+    if (state.members.includes(name)) {
         state.currentPerson = name;
+        personSelector.querySelectorAll('.person-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.person === name);
+        });
         showToast(`切换到 ${name}`);
     }
 });
