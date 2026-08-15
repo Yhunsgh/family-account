@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <!-- ===== 列3：债务 + 还款 ===== -->
+        <!-- ===== 列3：债务 + 还款（内嵌） ===== -->
         <div class="col">
             <div class="module-box debt-module">
                 <div class="module-header">
@@ -147,42 +147,47 @@
                         <button class="clear-btn" id="clearDebtBtn">清空全部</button>
                     </div>
                     <div class="record-list" id="debtRecordList"></div>
-                </div>
-            </div>
 
-            <!-- ===== 还款模块 ===== -->
-            <div class="module-box repayment-module">
-                <div class="module-header">
-                    <h2>还款</h2>
-                </div>
-                <div class="repayment-body">
-                    <div class="repayment-row">
-                        <div class="field">
-                            <label>还款金额 (¥)</label>
-                            <div class="currency"><input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                    <!-- 虚线分隔 -->
+                    <hr class="section-divider" />
+
+                    <!-- 还款区域（内嵌） -->
+                    <div class="repayment-section">
+                        <div class="repayment-header">
+                            <h3>还款</h3>
                         </div>
-                        <div class="field">
-                            <label>扣款类型</label>
-                            <select id="repaymentType">
-                                <option value="amount">欠款</option>
-                                <option value="goodsAmount">货款欠款</option>
-                            </select>
+                        <div class="repayment-body">
+                            <div class="repayment-row">
+                                <div class="field">
+                                    <label>还款金额 (¥)</label>
+                                    <div class="currency">
+                                        <input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" />
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>扣款类型</label>
+                                    <select id="repaymentType">
+                                        <option value="amount">欠款</option>
+                                        <option value="goodsAmount">货款欠款</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>搜索备注（匹配债务记录）</label>
+                                <input type="text" id="repaymentSearch" placeholder="输入关键词搜索，留空显示无备注记录" />
+                            </div>
+                            <div class="repayment-results" id="repaymentResults">
+                                <div class="empty-state">输入关键词搜索债务记录</div>
+                            </div>
+                            <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
                         </div>
                     </div>
-                    <div class="field">
-                        <label>搜索备注（匹配债务记录）</label>
-                        <input type="text" id="repaymentSearch" placeholder="输入关键词搜索，留空显示无备注记录" />
-                    </div>
-                    <div class="repayment-results" id="repaymentResults">
-                        <div class="empty-state">输入关键词搜索债务记录</div>
-                    </div>
-                    <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ==================== 退出按钮（改为刷新/重置，可选） ==================== -->
+    <!-- ==================== 刷新按钮 ==================== -->
     <div style="text-align:right; margin-top:16px;">
         <button class="logout-btn" id="refreshBtn">刷新数据</button>
     </div>
