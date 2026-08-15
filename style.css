@@ -1,28 +1,13 @@
-/* ========== CSS 变量 ========== */
-:root {
-    --color-bg: #f7f3ee;
-    --color-card-bg: #ffffff;
-    --color-border: #ede7e0;
-    --color-primary: #c9a77b;
-    --color-primary-dark: #b88a5e;
-    --color-text: #3d2c1e;
-    --color-text-light: #5a3e2b;
-    --color-muted: #a5856a;
-    --color-cost: #b88a5e;
-    --color-income: #6f8c9b;
-    --color-goods: #d4a373;
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.02);
-    --shadow-md: 0 6px 24px rgba(0,0,0,0.2);
-    --radius: 20px;
-    --radius-sm: 12px;
+/* ========== 全局 ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
-
-/* ========== 全局重置 ========== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
 body {
     font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-    background: var(--color-bg);
-    color: var(--color-text);
+    background: #f7f3ee;
+    color: #3d2c1e;
     padding: 16px 16px 40px;
     min-height: 100vh;
     display: flex;
@@ -32,11 +17,13 @@ body {
 .app {
     max-width: 1200px;
     width: 100%;
-    background: var(--color-card-bg);
+    background: #ffffff;
     border-radius: 28px;
     padding: 20px 18px 30px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.06);
 }
+
+/* ========== 底部版本号 ========== */
 .app-footer {
     max-width: 1200px;
     width: 100%;
@@ -45,16 +32,24 @@ body {
     padding: 12px 0 4px;
     color: #b8a8a0;
     font-size: 13px;
-    border-top: 1px solid var(--color-border);
+    letter-spacing: 0.3px;
+    border-top: 1px solid #ede7e0;
 }
-.app-footer #version { color: var(--color-primary); font-weight: 600; }
+.app-footer #version {
+    color: #c9a77b;
+    font-weight: 600;
+}
+
+/* ========== 登录页已移除 ========== */
 
 /* ========== 人员选择 ========== */
-.person-section { margin-bottom: 20px; }
+.person-section {
+    margin-bottom: 20px;
+}
 .section-label {
     font-size: 15px;
     font-weight: 600;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
@@ -72,15 +67,15 @@ body {
 }
 .manage-btn {
     background: transparent;
-    border: 1.5px solid var(--color-border);
+    border: 1.5px solid #e8ddd2;
     border-radius: 20px;
     padding: 4px 14px;
     font-size: 14px;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     cursor: pointer;
     transition: all 0.15s;
 }
-.manage-btn:active { background: var(--color-border); }
+.manage-btn:active { background: #ede7e0; }
 
 .person-selector {
     display: flex;
@@ -90,26 +85,27 @@ body {
 .person-btn {
     flex: 1;
     padding: 12px 0;
-    border: 2px solid var(--color-border);
+    border: 2px solid #e8ddd2;
     border-radius: 18px;
     background: #fcfaf8;
     font-size: 18px;
     font-weight: 600;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     cursor: pointer;
     transition: all 0.15s;
     text-align: center;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
     min-width: 80px;
 }
 .person-btn:active { transform: scale(0.96); }
 .person-btn.active {
-    border-color: var(--color-primary);
+    border-color: #c9a77b;
     background: #f5ede4;
     box-shadow: 0 0 0 3px rgba(201,167,123,0.2);
 }
 
-/* ========== 三栏布局 ========== */
+/* ========== 三栏等宽布局（顶部对齐） ========== */
 .triple-col {
     display: flex;
     gap: 20px;
@@ -123,15 +119,16 @@ body {
     gap: 16px;
 }
 
-/* ========== 模块盒子 ========== */
+/* ========== 模块盒子（共用样式） ========== */
 .module-box {
     background: #fcfaf8;
-    border-radius: var(--radius);
+    border-radius: 20px;
     padding: 16px 14px 20px;
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid #ede7e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     width: 100%;
 }
+
 .module-header {
     display: flex;
     justify-content: space-between;
@@ -142,24 +139,24 @@ body {
 .module-header h2 {
     font-size: 20px;
     font-weight: 700;
-    color: var(--color-text-light);
+    color: #5a3e2b;
 }
 .module-header .date-picker {
-    background: var(--color-border);
+    background: #ede7e0;
     padding: 4px 12px 4px 8px;
     border-radius: 30px;
     display: flex;
     align-items: center;
     gap: 4px;
     font-size: 14px;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     font-weight: 500;
 }
 .module-header .date-picker input[type="date"] {
     border: none;
     background: transparent;
     font-size: 14px;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     font-weight: 500;
     outline: none;
     padding: 4px 0;
@@ -191,21 +188,29 @@ body {
     color: #7a624c;
     margin-bottom: 4px;
 }
-.field input, .field textarea, .field select {
+.field input,
+.field textarea,
+.field select {
     width: 100%;
     padding: 8px 12px;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-sm);
+    border: 1.5px solid #e8ddd2;
+    border-radius: 12px;
     font-size: 15px;
-    background: var(--color-card-bg);
-    color: var(--color-text);
+    background: #ffffff;
+    color: #3d2c1e;
     transition: border 0.2s;
     outline: none;
     font-family: inherit;
 }
-.field select { appearance: auto; cursor: pointer; }
-.field input:focus, .field textarea:focus, .field select:focus {
-    border-color: var(--color-primary);
+.field select {
+    appearance: auto;
+    cursor: pointer;
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+    border-color: #c9a77b;
+    background: #ffffff;
 }
 .field textarea {
     resize: vertical;
@@ -220,7 +225,7 @@ body {
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--color-muted);
+    color: #a5856a;
     font-weight: 600;
     font-size: 15px;
     pointer-events: none;
@@ -231,7 +236,7 @@ body {
     padding: 12px;
     border: none;
     border-radius: 16px;
-    background: var(--color-primary);
+    background: #c9a77b;
     color: #fff;
     font-size: 17px;
     font-weight: 700;
@@ -244,15 +249,14 @@ body {
 .btn-submit:active { transform: scale(0.97); }
 .btn-submit:disabled { opacity: 0.6; transform: none; }
 
-/* ========== 还款区域（内嵌在债务模块内） ========== */
-.repayment-section {
-    padding-top: 4px;
+/* ========== 还款模块 ========== */
+.repayment-module .module-header {
+    margin-bottom: 12px;
 }
-.repayment-section .repayment-header h3 {
-    font-size: 18px;
+.repayment-module .module-header h2 {
+    font-size: 20px;
     font-weight: 700;
-    color: var(--color-text-light);
-    margin-bottom: 10px;
+    color: #5a3e2b;
 }
 
 .repayment-body {
@@ -265,14 +269,17 @@ body {
     gap: 10px;
     flex-wrap: wrap;
 }
-.repayment-row .field { flex: 1; min-width: 80px; }
+.repayment-row .field {
+    flex: 1;
+    min-width: 80px;
+}
 
 .repayment-results {
     max-height: 180px;
     overflow-y: auto;
-    background: var(--color-card-bg);
-    border-radius: var(--radius-sm);
-    border: 1.5px solid var(--color-border);
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1.5px solid #e8ddd2;
     padding: 6px 4px;
 }
 .repayment-results::-webkit-scrollbar { width: 4px; }
@@ -291,11 +298,15 @@ body {
     border-bottom: 1px solid #f5f0eb;
     font-size: 13px;
 }
-.repayment-result-item:last-child { border-bottom: none; }
-.repayment-result-item:hover { background: #f5ede4; }
+.repayment-result-item:last-child {
+    border-bottom: none;
+}
+.repayment-result-item:hover {
+    background: #f5ede4;
+}
 .repayment-result-item.selected {
     background: #e8ddd2;
-    border-left: 4px solid var(--color-primary);
+    border-left: 4px solid #c9a77b;
     padding-left: 10px;
 }
 .repayment-result-item .left {
@@ -304,11 +315,14 @@ body {
     gap: 6px;
     flex-wrap: wrap;
 }
-.repayment-result-item .left .date { font-size: 11px; color: var(--color-muted); }
+.repayment-result-item .left .date {
+    font-size: 11px;
+    color: #a5856a;
+}
 .repayment-result-item .left .note {
     font-size: 13px;
     font-weight: 500;
-    color: var(--color-text);
+    color: #3d2c1e;
     max-width: 100px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -320,21 +334,32 @@ body {
     font-weight: 500;
     flex-wrap: wrap;
 }
-.repayment-result-item .right .amount { color: var(--color-cost); }
-.repayment-result-item .right .goods { color: var(--color-goods); }
+.repayment-result-item .right .amount {
+    color: #b88a5e;
+}
+.repayment-result-item .right .goods {
+    color: #d4a373;
+}
+.repayment-result-item .empty-note {
+    color: #b8a392;
+    font-style: italic;
+    font-size: 12px;
+}
 
 .repayment-btn {
     margin-top: 4px;
-    background: var(--color-primary-dark);
+    background: #b88a5e;
     box-shadow: 0 4px 12px rgba(184,138,94,0.3);
 }
-.repayment-btn:hover { background: #a67a52; }
+.repayment-btn:hover {
+    background: #a67a52;
+}
 .repayment-btn:active { transform: scale(0.97); }
 
 /* ========== 统计看板 ========== */
 .stats-section {
     margin-top: 16px;
-    border-top: 1px dashed var(--color-border);
+    border-top: 1px dashed #e8ddd2;
     padding-top: 14px;
 }
 .profit-card {
@@ -354,29 +379,18 @@ body {
     font-weight: 600;
     color: #2c4a5e;
 }
-.profit-card .profit-amount { font-size: 22px; font-weight: 700; }
+.profit-card .profit-amount {
+    font-size: 22px;
+    font-weight: 700;
+}
 .profit-card .profit-amount.positive { color: #2e7d32; }
 .profit-card .profit-amount.negative { color: #c62828; }
 .profit-card .profit-amount.zero { color: #6f8c9b; }
 
-/* ★ 支出总卡片样式 */
-.expense-total-card {
-    background: #f5ede4 !important;
-    border-color: var(--color-cost) !important;
-}
-.profit-amount.expense {
-    color: var(--color-cost);
-}
-.expense-detail {
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--color-muted);
-}
-
 .member-stat-card {
-    background: var(--color-card-bg);
+    background: #ffffff;
     border-radius: 16px;
-    border: 1px solid var(--color-border);
+    border: 1px solid #ede7e0;
     padding: 12px 12px 8px;
     margin-bottom: 12px;
 }
@@ -391,7 +405,7 @@ body {
 .member-stat-header .name {
     font-size: 17px;
     font-weight: 700;
-    color: var(--color-text-light);
+    color: #5a3e2b;
 }
 .member-stat-header .totals {
     display: flex;
@@ -400,14 +414,15 @@ body {
     font-weight: 500;
     flex-wrap: wrap;
 }
-.member-stat-header .totals .cost { color: var(--color-cost); }
-.member-stat-header .totals .income { color: var(--color-income); }
-.member-stat-header .totals .goods { color: var(--color-goods); }
+.member-stat-header .totals .cost { color: #b88a5e; }
+.member-stat-header .totals .income { color: #6f8c9b; }
+.member-stat-header .totals .goods { color: #d4a373; }
+.member-stat-header .totals .count { color: #a5856a; font-weight: 400; }
 
 .member-detail-list {
     max-height: 140px;
     overflow-y: auto;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid #ede7e0;
     padding-top: 6px;
     margin-top: 4px;
 }
@@ -431,7 +446,11 @@ body {
     flex: 1;
     min-width: 0;
 }
-.detail-item .left .date { font-size: 11px; color: var(--color-muted); white-space: nowrap; }
+.detail-item .left .date {
+    font-size: 11px;
+    color: #a5856a;
+    white-space: nowrap;
+}
 .detail-item .left .note {
     font-size: 12px;
     color: #7a624c;
@@ -448,9 +467,9 @@ body {
     flex-wrap: wrap;
     justify-content: flex-end;
 }
-.detail-item .right .cost { color: var(--color-cost); }
-.detail-item .right .income { color: var(--color-income); }
-.detail-item .right .goods { color: var(--color-goods); }
+.detail-item .right .cost { color: #b88a5e; }
+.detail-item .right .income { color: #6f8c9b; }
+.detail-item .right .goods { color: #d4a373; }
 .detail-empty {
     text-align: center;
     color: #b8a392;
@@ -467,20 +486,20 @@ body {
     margin-top: 12px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     flex-wrap: wrap;
     gap: 6px;
 }
 .grand-total .item { text-align: center; }
 .grand-total .item .num { font-weight: 700; font-size: 17px; }
-.grand-total .item .num.cost { color: var(--color-cost); }
-.grand-total .item .num.income { color: var(--color-income); }
-.grand-total .item .num.goods { color: var(--color-goods); }
+.grand-total .item .num.cost { color: #b88a5e; }
+.grand-total .item .num.income { color: #6f8c9b; }
+.grand-total .item .num.goods { color: #d4a373; }
 
 /* ========== 记录列表 ========== */
 .history-section {
     margin-top: 16px;
-    border-top: 1px dashed var(--color-border);
+    border-top: 1px dashed #e8ddd2;
     padding-top: 14px;
 }
 .history-header {
@@ -491,7 +510,7 @@ body {
 }
 .history-header .clear-btn {
     font-size: 12px;
-    color: var(--color-primary-dark);
+    color: #b88a5e;
     background: #f5ede4;
     border: none;
     border-radius: 20px;
@@ -516,10 +535,10 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--color-card-bg);
+    background: #ffffff;
     padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    border: 1px solid #ede7e0;
     font-size: 13px;
     animation: fadeIn 0.2s ease;
 }
@@ -536,8 +555,11 @@ body {
     gap: 6px;
     flex-wrap: wrap;
 }
-.record-item .left .top .pname { font-weight: 600; color: var(--color-text-light); }
-.record-item .left .top .pdate { font-size: 11px; color: var(--color-muted); }
+.record-item .left .top .pname { font-weight: 600; color: #5a3e2b; }
+.record-item .left .top .pdate {
+    font-size: 11px;
+    color: #a5856a;
+}
 .record-item .left .note {
     font-size: 12px;
     color: #7a624c;
@@ -552,9 +574,9 @@ body {
     gap: 4px 6px;
     justify-content: flex-end;
 }
-.record-item .right .cost { color: var(--color-cost); font-weight: 600; }
-.record-item .right .income { color: var(--color-income); font-weight: 600; }
-.record-item .right .goods { color: var(--color-goods); font-weight: 600; }
+.record-item .right .cost { color: #b88a5e; font-weight: 600; }
+.record-item .right .income { color: #6f8c9b; font-weight: 600; }
+.record-item .right .goods { color: #d4a373; font-weight: 600; }
 .record-item .right .empty { color: #ccc; }
 .record-item .del-btn {
     background: none;
@@ -565,7 +587,7 @@ body {
     padding: 0 4px;
     margin-left: 4px;
 }
-.record-item .del-btn:active { color: var(--color-primary-dark); }
+.record-item .del-btn:active { color: #b88a5e; }
 
 .empty-state {
     text-align: center;
@@ -580,13 +602,13 @@ body {
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%) scale(0.9);
-    background: var(--color-text);
+    background: #3d2c1e;
     color: #fff;
     padding: 8px 20px;
     border-radius: 30px;
     font-size: 14px;
     font-weight: 500;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
     opacity: 0;
     transition: all 0.25s;
     pointer-events: none;
@@ -601,14 +623,14 @@ body {
     100% { opacity: 1; transform: translateY(0); }
 }
 
-/* ========== 模态框 ========== */
+/* ========== 更新公告弹窗 ========== */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -617,9 +639,12 @@ body {
     opacity: 0;
     transition: opacity 0.3s ease;
 }
-.modal-overlay.active { visibility: visible; opacity: 1; }
+.modal-overlay.active {
+    visibility: visible;
+    opacity: 1;
+}
 .modal-box {
-    background: var(--color-card-bg);
+    background: #ffffff;
     border-radius: 24px;
     padding: 28px 30px 22px;
     max-width: 480px;
@@ -628,14 +653,20 @@ body {
     transform: scale(0.9);
     transition: transform 0.3s ease;
 }
-.modal-overlay.active .modal-box { transform: scale(1); }
+.modal-overlay.active .modal-box {
+    transform: scale(1);
+}
 .modal-header {
     margin-bottom: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-.modal-title { font-size: 22px; font-weight: 700; color: var(--color-text-light); }
+.modal-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #5a3e2b;
+}
 .modal-close {
     background: transparent;
     border: none;
@@ -644,18 +675,23 @@ body {
     cursor: pointer;
     padding: 0 4px;
 }
-.modal-body { font-size: 15px; color: var(--color-text); }
+.modal-body {
+    font-size: 15px;
+    color: #3d2c1e;
+}
 .version-info {
     font-size: 16px;
     font-weight: 600;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     margin-bottom: 12px;
     background: #f5ede4;
     padding: 8px 12px;
-    border-radius: var(--radius-sm);
+    border-radius: 12px;
     display: inline-block;
 }
-.version-info span { color: var(--color-primary); }
+.version-info span {
+    color: #c9a77b;
+}
 .update-list {
     list-style: none;
     padding: 0;
@@ -671,16 +707,20 @@ body {
     content: "•";
     position: absolute;
     left: 4px;
-    color: var(--color-primary);
+    color: #c9a77b;
     font-weight: bold;
     font-size: 18px;
 }
-.modal-footer { margin-top: 18px; display: flex; justify-content: flex-end; }
+.modal-footer {
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+}
 .modal-btn {
     padding: 10px 30px;
     border: none;
     border-radius: 30px;
-    background: var(--color-primary);
+    background: #c9a77b;
     color: #fff;
     font-size: 16px;
     font-weight: 600;
@@ -688,10 +728,14 @@ body {
     transition: background 0.15s;
     box-shadow: 0 4px 12px rgba(201,167,123,0.3);
 }
-.modal-btn:hover { background: #b89468; }
-.modal-btn:active { transform: scale(0.96); }
+.modal-btn:hover {
+    background: #b89468;
+}
+.modal-btn:active {
+    transform: scale(0.96);
+}
 
-/* ========== 成员管理 ========== */
+/* ========== 成员管理模态框内样式 ========== */
 .member-list {
     margin-bottom: 16px;
     max-height: 200px;
@@ -704,7 +748,10 @@ body {
     padding: 8px 4px;
     border-bottom: 1px solid #f0ebe5;
 }
-.member-item .name { font-size: 16px; font-weight: 500; }
+.member-item .name {
+    font-size: 16px;
+    font-weight: 500;
+}
 .member-item .del-member-btn {
     background: transparent;
     border: none;
@@ -713,7 +760,7 @@ body {
     cursor: pointer;
     padding: 0 6px;
 }
-.member-item .del-member-btn:active { color: var(--color-primary-dark); }
+.member-item .del-member-btn:active { color: #b88a5e; }
 .member-add {
     display: flex;
     gap: 8px;
@@ -723,28 +770,72 @@ body {
 .member-add input {
     flex: 1;
     padding: 8px 12px;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-sm);
+    border: 1.5px solid #e8ddd2;
+    border-radius: 12px;
     font-size: 15px;
     outline: none;
 }
-.member-add input:focus { border-color: var(--color-primary); }
+.member-add input:focus {
+    border-color: #c9a77b;
+}
 
-/* ========== 刷新按钮 ========== */
+/* ========== 刷新按钮（原退出按钮） ========== */
 .logout-btn {
     background: transparent;
-    border: 1px solid var(--color-border);
+    border: 1px solid #e8ddd2;
     border-radius: 20px;
     padding: 6px 16px;
     font-size: 14px;
-    color: var(--color-muted);
+    color: #a5856a;
     cursor: pointer;
     transition: all 0.15s;
 }
-.logout-btn:active { background: var(--color-border); }
+.logout-btn:active { background: #ede7e0; }
 
-/* ========== 全局统计 ========== */
-.global-stats-container { margin-bottom: 12px; }
+/* ========== 响应式 ========== */
+@media (max-width: 900px) {
+    .triple-col {
+        flex-wrap: wrap;
+    }
+    .col {
+        flex: 1 1 calc(50% - 10px);
+        min-width: 260px;
+    }
+}
+@media (max-width: 650px) {
+    .col {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    .triple-col {
+        gap: 16px;
+    }
+    .app {
+        padding: 16px 12px 24px;
+    }
+    .member-stat-header .totals { font-size: 13px; gap: 8px; }
+    .detail-item { font-size: 12px; }
+    .detail-item .left .note { max-width: 60px; }
+    .module-header .date-picker input[type="date"] { width: 100px; }
+    .app-footer { font-size: 12px; }
+    .repayment-row {
+        flex-direction: column;
+    }
+    .repayment-result-item {
+        font-size: 12px;
+    }
+    .repayment-result-item .left .note {
+        max-width: 70px;
+    }
+}
+@media (max-width: 400px) {
+    .person-btn { font-size: 16px; padding: 10px 0; }
+    .module-header h2 { font-size: 18px; }
+}
+/* ========== 全局统计概览（本月+总计） ========== */
+.global-stats-container {
+    margin-bottom: 12px;
+}
 .global-stats {
     background: #f5f0eb;
     border-radius: 16px;
@@ -762,62 +853,36 @@ body {
 .stat-row:first-child {
     margin-bottom: 6px;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid #e8ddd2;
 }
 .stat-row .label {
-    color: var(--color-text-light);
+    color: #5a3e2b;
     font-weight: 600;
     font-size: 14px;
     min-width: 56px;
 }
-.stat-row .income { color: var(--color-income); font-weight: 600; }
-.stat-row .goods { color: var(--color-goods); font-weight: 600; }
-.stat-row .cost { color: var(--color-cost); font-weight: 600; }
-
-/* ========== 加载更多 ========== */
+.stat-row .income { color: #6f8c9b; font-weight: 600; }
+.stat-row .goods { color: #d4a373; font-weight: 600; }
+.stat-row .cost { color: #b88a5e; font-weight: 600; }
+/* ========== 加载更多按钮 ========== */
 .load-more-container {
     text-align: center;
     padding: 12px 0 4px;
 }
 .load-more-btn {
     background: #f5ede4;
-    border: 1px solid var(--color-border);
+    border: 1px solid #e8ddd2;
     border-radius: 20px;
     padding: 6px 20px;
     font-size: 14px;
-    color: var(--color-text-light);
+    color: #5a3e2b;
     cursor: pointer;
     transition: background 0.15s;
 }
-.load-more-btn:active { background: var(--color-border); }
-.load-all-info { font-size: 13px; color: var(--color-muted); }
-
-/* ========== 虚线分隔符 ========== */
-.section-divider {
-    border: none;
-    border-top: 1px dashed var(--color-border);
-    margin: 16px 0;
+.load-more-btn:active {
+    background: #e8ddd2;
 }
-
-/* ========== 响应式 ========== */
-@media (max-width: 900px) {
-    .triple-col { flex-wrap: wrap; }
-    .col { flex: 1 1 calc(50% - 10px); min-width: 260px; }
-}
-@media (max-width: 650px) {
-    .col { flex: 1 1 100%; min-width: 0; }
-    .triple-col { gap: 16px; }
-    .app { padding: 16px 12px 24px; }
-    .member-stat-header .totals { font-size: 13px; gap: 8px; }
-    .detail-item { font-size: 12px; }
-    .detail-item .left .note { max-width: 60px; }
-    .module-header .date-picker input[type="date"] { width: 100px; }
-    .app-footer { font-size: 12px; }
-    .repayment-row { flex-direction: column; }
-    .repayment-result-item { font-size: 12px; }
-    .repayment-result-item .left .note { max-width: 70px; }
-}
-@media (max-width: 400px) {
-    .person-btn { font-size: 16px; padding: 10px 0; }
-    .module-header h2 { font-size: 18px; }
+.load-all-info {
+    font-size: 13px;
+    color: #a5856a;
 }
