@@ -1,16 +1,17 @@
 /* ========== CSS 变量 ========== */
 :root {
+    /* 全局颜色主题，便于统一调整 */
     --color-bg: #f7f3ee;
     --color-card-bg: #ffffff;
     --color-border: #ede7e0;
-    --color-primary: #c9a77b;
+    --color-primary: #c9a77b;        /* 主色调（金色/咖啡） */
     --color-primary-dark: #b88a5e;
     --color-text: #3d2c1e;
     --color-text-light: #5a3e2b;
     --color-muted: #a5856a;
-    --color-cost: #b88a5e;
-    --color-income: #6f8c9b;
-    --color-goods: #d4a373;
+    --color-cost: #b88a5e;           /* 支出/欠款颜色 */
+    --color-income: #6f8c9b;         /* 收入颜色 */
+    --color-goods: #d4a373;          /* 货款颜色 */
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.02);
     --shadow-md: 0 6px 24px rgba(0,0,0,0.2);
     --radius: 20px;
@@ -62,6 +63,7 @@ body {
     flex-wrap: wrap;
     gap: 6px;
 }
+/* 小徽章提示“点击切换” */
 .section-label .badge {
     font-size: 12px;
     background: #e8ddd2;
@@ -103,6 +105,7 @@ body {
     min-width: 80px;
 }
 .person-btn:active { transform: scale(0.96); }
+/* 激活状态：主色边框加阴影 */
 .person-btn.active {
     border-color: var(--color-primary);
     background: #f5ede4;
@@ -117,7 +120,7 @@ body {
 }
 .col {
     flex: 1;
-    min-width: 0;
+    min-width: 0;       /* 防止溢出 */
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -212,6 +215,7 @@ body {
     min-height: 44px;
     font-size: 14px;
 }
+/* 货币输入框前添加 ¥ 符号 */
 .field .currency { position: relative; }
 .field .currency input { padding-left: 28px; }
 .field .currency::before {
@@ -267,6 +271,7 @@ body {
 }
 .repayment-row .field { flex: 1; min-width: 80px; }
 
+/* 还款搜索结果列表 */
 .repayment-results {
     max-height: 180px;
     overflow-y: auto;
@@ -293,6 +298,7 @@ body {
 }
 .repayment-result-item:last-child { border-bottom: none; }
 .repayment-result-item:hover { background: #f5ede4; }
+/* 选中状态：左侧加色条 */
 .repayment-result-item.selected {
     background: #e8ddd2;
     border-left: 4px solid var(--color-primary);
@@ -337,6 +343,7 @@ body {
     border-top: 1px dashed var(--color-border);
     padding-top: 14px;
 }
+/* 以下为旧的盈利卡片和支出总卡片，目前未使用（v0.50已移除），但保留样式以防回退 */
 .profit-card {
     background: #e6f0fa;
     border-radius: 16px;
@@ -359,7 +366,6 @@ body {
 .profit-card .profit-amount.negative { color: #c62828; }
 .profit-card .profit-amount.zero { color: #6f8c9b; }
 
-/* ★ 支出总卡片样式 */
 .expense-total-card {
     background: #f5ede4 !important;
     border-color: var(--color-cost) !important;
@@ -373,6 +379,7 @@ body {
     color: var(--color-muted);
 }
 
+/* 每个成员的统计卡片 */
 .member-stat-card {
     background: var(--color-card-bg);
     border-radius: 16px;
@@ -404,6 +411,7 @@ body {
 .member-stat-header .totals .income { color: var(--color-income); }
 .member-stat-header .totals .goods { color: var(--color-goods); }
 
+/* 成员明细列表（当日记录） */
 .member-detail-list {
     max-height: 140px;
     overflow-y: auto;
@@ -458,6 +466,7 @@ body {
     padding: 8px 0;
 }
 
+/* 底部的汇总框（已移除，但保留样式以免影响现有布局） */
 .grand-total {
     display: flex;
     justify-content: space-around;
@@ -512,6 +521,7 @@ body {
 .record-list::-webkit-scrollbar { width: 4px; }
 .record-list::-webkit-scrollbar-thumb { background: #dccfc2; border-radius: 10px; }
 
+/* 单条记录样式 */
 .record-item {
     display: flex;
     justify-content: space-between;

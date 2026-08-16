@@ -2,20 +2,23 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
+    <!-- 视口设置，适配移动端，禁止缩放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>账本</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- ==================== 主应用 ==================== -->
+<!-- ==================== 主应用容器 ==================== -->
 <div class="app" id="mainApp">
     <!-- ==================== 人员切换 + 管理入口 ==================== -->
+    <!-- 该区域显示当前所有成员，并允许点击切换当前记账人，右侧按钮打开成员管理模态框 -->
     <div class="person-section">
         <div class="section-label">
             <span>谁在记账？ <span class="badge">点击切换</span></span>
             <button class="manage-btn" id="manageMemberBtn">管理成员</button>
         </div>
+        <!-- 动态由 JavaScript 生成成员按钮 -->
         <div class="person-selector" id="personSelector">
             <!-- 动态由 JavaScript 生成 -->
         </div>
@@ -23,16 +26,18 @@
 
     <!-- ==================== 三栏等宽布局（顶部对齐） ==================== -->
     <div class="triple-col">
-        <!-- ===== 列1：账本 ===== -->
+        <!-- ===== 列1：账本（收入与货款） ===== -->
         <div class="col">
             <div class="module-box income-module">
                 <div class="module-header">
                     <h2>账本</h2>
                     <div class="date-picker">
                         日期：
+                        <!-- 日期选择器，用于筛选该日期的明细 -->
                         <input type="date" id="incomeDate" />
                     </div>
                 </div>
+                <!-- 输入区域：收入、货款、备注、记录按钮 -->
                 <div class="input-group">
                     <div class="input-row">
                         <div class="field">
@@ -50,12 +55,15 @@
                     </div>
                     <button class="btn-submit" id="submitBtn">记录</button>
                 </div>
+                <!-- 统计部分：全局统计（本月/总计）和所选日期明细 -->
                 <div class="stats-section">
                     <div id="incomeGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="incomeStatsContainer"></div>
+                    <!-- 原本有 grand-total 底部汇总，但在 v0.50 已移除，故该容器为空 -->
                     <div class="grand-total" id="incomeGrandTotal"></div>
                 </div>
+                <!-- 全部记录列表（带加载更多和清空全部） -->
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部记录</div>
@@ -66,7 +74,7 @@
             </div>
         </div>
 
-        <!-- ===== 列2：支出 ===== -->
+        <!-- ===== 列2：支出（个人支出 + 家庭支出） ===== -->
         <div class="col">
             <div class="module-box family-module">
                 <div class="module-header">
@@ -148,10 +156,10 @@
                     </div>
                     <div class="record-list" id="debtRecordList"></div>
 
-                    <!-- 虚线分隔 -->
+                    <!-- 虚线分隔符 -->
                     <hr class="section-divider" />
 
-                    <!-- 还款区域（内嵌） -->
+                    <!-- 还款区域（内嵌在债务模块内） -->
                     <div class="repayment-section">
                         <div class="repayment-header">
                             <h3>还款</h3>
@@ -176,6 +184,7 @@
                                 <label>搜索备注（匹配债务记录）</label>
                                 <input type="text" id="repaymentSearch" placeholder="输入关键词搜索，留空显示无备注记录" />
                             </div>
+                            <!-- 搜索结果列表，点击选中某条债务 -->
                             <div class="repayment-results" id="repaymentResults">
                                 <div class="empty-state">输入关键词搜索债务记录</div>
                             </div>
@@ -194,6 +203,7 @@
 </div>
 
 <!-- ==================== 成员管理模态框 ==================== -->
+<!-- 点击“管理成员”按钮弹出，可查看所有成员并删除，底部可添加新成员 -->
 <div class="modal-overlay" id="memberModal">
     <div class="modal-box">
         <div class="modal-header">
@@ -213,9 +223,11 @@
 </div>
 
 <!-- ==================== Toast 全局提示 ==================== -->
+<!-- 临时消息提示，显示在屏幕底部中央 -->
 <div class="toast" id="toast"></div>
 
 <!-- ==================== 更新公告弹窗 ==================== -->
+<!-- 首次加载新版本时弹出，显示版本变更内容 -->
 <div class="modal-overlay" id="updateModal">
     <div class="modal-box">
         <div class="modal-header">
@@ -241,8 +253,10 @@
 </footer>
 
 <!-- ==================== 第三方库 & 应用脚本 ==================== -->
+<!-- Firebase SDK（兼容模式） -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<!-- 自定义脚本 -->
 <script src="firebase.js"></script>
 <script src="update-log.js"></script>
 <script src="script.js"></script>
