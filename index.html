@@ -36,11 +36,11 @@
                     <div class="input-row">
                         <div class="field">
                             <label>收入 (¥)</label>
-                            <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" /></div>
+                            <div class="currency"><input type="number" id="incomeAmt" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                         <div class="field">
                             <label>货款 (¥)</label>
-                            <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" /></div>
+                            <div class="currency"><input type="number" id="goodsAmt" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                     </div>
                     <div class="field">
@@ -53,12 +53,12 @@
                     <div id="incomeGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="incomeStatsContainer"></div>
-                    <div class="grand-total" id="incomeGrandTotal"></div>
+                    <!-- 已删除废弃的 grand-total -->
                 </div>
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部记录</div>
-                        <button class="clear-btn" id="clearIncomeBtn">清空全部</button>
+                        <button class="clear-btn" id="clearIncomeBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="incomeRecordList"></div>
                 </div>
@@ -79,7 +79,7 @@
                     <div class="input-row">
                         <div class="field">
                             <label>支出 (¥)</label>
-                            <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" /></div>
+                            <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                     </div>
                     <div class="field">
@@ -92,12 +92,12 @@
                     <div id="familyGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
                     <div id="familyStatsContainer"></div>
-                    <div class="grand-total" id="familyGrandTotal"></div>
+                    <!-- 已删除废弃的 grand-total -->
                 </div>
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部支出记录</div>
-                        <button class="clear-btn" id="clearFamilyBtn">清空全部</button>
+                        <button class="clear-btn" id="clearFamilyBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="familyRecordList"></div>
                 </div>
@@ -118,11 +118,11 @@
                     <div class="input-row">
                         <div class="field">
                             <label>欠款 (¥)</label>
-                            <div class="currency"><input type="number" id="debtAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                            <div class="currency"><input type="number" id="debtAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                         <div class="field">
                             <label>货款欠款 (¥)</label>
-                            <div class="currency"><input type="number" id="debtGoodsAmount" placeholder="0.00" step="0.01" min="0" /></div>
+                            <div class="currency"><input type="number" id="debtGoodsAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                     </div>
                     <div class="field">
@@ -139,7 +139,7 @@
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部债务记录</div>
-                        <button class="clear-btn" id="clearDebtBtn">清空全部</button>
+                        <button class="clear-btn" id="clearDebtBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="debtRecordList"></div>
 
@@ -154,7 +154,7 @@
                                 <div class="field">
                                     <label>还款金额 (¥)</label>
                                     <div class="currency">
-                                        <input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" />
+                                        <input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" />
                                     </div>
                                 </div>
                                 <div class="field">
@@ -167,7 +167,6 @@
                             </div>
                             <div class="field">
                                 <label>搜索备注（匹配债务记录）</label>
-                                <!-- 恢复原 placeholder -->
                                 <input type="text" id="repaymentSearch" placeholder="输入关键词搜索，留空显示无备注记录" />
                             </div>
                             <div class="repayment-results" id="repaymentResults">

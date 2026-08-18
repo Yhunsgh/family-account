@@ -1,7 +1,7 @@
 /**
  * ================================================================
- *  家庭账本应用 - 主脚本（DRY 重构版）
- *  v0.52 - 还款搜索逻辑恢复原样（留空显示无备注债务）
+ *  家庭账本应用 - 主脚本（v0.53 清理版）
+ *  改进：提取通用排序函数、删除冗余代码、修复多个逻辑漏洞
  * ================================================================
  */
 
@@ -24,13 +24,13 @@ const state = {
     _statsCache: { income: null, family: null, debt: null },
     _lastRecordIds: { income: [], family: [], debt: [] },
     _renderScheduled: false,
+    _submitting: false,  // 提交锁，防止连点
 };
 
 // ================================================================
-//  DOM 引用
+//  3.  DOM 引用
 // ================================================================
 const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
 
 const personSelector = $('#personSelector');
 const manageMemberBtn = $('#manageMemberBtn');
@@ -47,7 +47,6 @@ const domMap = {
         note: $('#noteInput'),
         submit: $('#submitBtn'),
         statsContainer: $('#incomeStatsContainer'),
-        grandTotal: $('#incomeGrandTotal'),
         recordList: $('#incomeRecordList'),
         dateInput: $('#incomeDate'),
         clearBtn: $('#clearIncomeBtn'),
@@ -59,7 +58,6 @@ const domMap = {
         note: $('#familyNote'),
         submit: $('#familySubmitBtn'),
         statsContainer: $('#familyStatsContainer'),
-        grandTotal: $('#familyGrandTotal'),
         recordList: $('#familyRecordList'),
         dateInput: $('#familyDate'),
         clearBtn: $('#clearFamilyBtn'),
@@ -71,7 +69,6 @@ const domMap = {
         note: $('#debtNote'),
         submit: $('#debtSubmitBtn'),
         statsContainer: $('#debtStatsContainer'),
-        grandTotal: null,
         recordList: $('#debtRecordList'),
         dateInput: $('#debtDate'),
         clearBtn: $('#clearDebtBtn'),
@@ -87,10 +84,29 @@ const repaymentSubmitBtn = $('#repaymentSubmitBtn');
 const refreshBtn = $('#refreshBtn');
 
 // ================================================================
-//  3.  工具函数
+//  4.  常量 & 工具函数
 // ================================================================
+const MODULE_KEYS = ['income', 'family', 'debt'];
+const MODULE_LABELS = { income: '账本', family: '支出', debt: '债务' };
+
+/** 获取记录的日期（优先使用 date 字段，否则从 createdAt 提取） */
+function getRecordDate(record) {
+    return record.date || new Date(record.createdAt || 0).toISOString().slice(0, 10);
+}
+
+/** 通用排序：按日期倒序，日期相同按创建时间倒序 */
+function sortRecordsByDate(records) {
+    return [...records].sort((a, b) => {
+        const dateA = getRecordDate(a);
+        const dateB = getRecordDate(b);
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+}
+
 function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
+    if (!dateStr) return '';
+    const d = new Date(dateStr);  // 直接用本地时区解析
     return `${d.getMonth()+1}月${d.getDate()}日`;
 }
 
@@ -118,7 +134,7 @@ function getTodayStr() {
 }
 
 function getMonthKey(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = new Date(dateStr);  // 直接用本地时区
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
@@ -136,7 +152,7 @@ function areRecordIdsEqual(arr1, arr2) {
 }
 
 // ================================================================
-//  4.  人员管理
+//  5.  人员管理
 // ================================================================
 function watchMembers() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
@@ -219,6 +235,7 @@ function renderMemberList() {
             const name = this.dataset.name;
             if (!confirm(`确定删除成员“${name}”吗？\n该成员的所有记录将被永久删除！`)) return;
 
+            // 删除 members 节点中的该成员
             db.ref('members').orderByValue().equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -237,7 +254,8 @@ function renderMemberList() {
                 }
             });
 
-            const paths = ['familyRecords', 'familyExpenses', 'debtRecords'];
+            // 级联清理：所有数据表 + 还款历史
+            const paths = ['familyRecords', 'familyExpenses', 'debtRecords', 'repaymentHistory'];
             paths.forEach(path => {
                 db.ref(path).orderByChild('person').equalTo(name).once('value', (snapshot) => {
                     const data = snapshot.val();
@@ -273,7 +291,107 @@ newMemberInput.addEventListener('keydown', (e) => {
 });
 
 // ================================================================
-//  5.  通用渲染函数
+//  6.  模块配置工厂
+// ================================================================
+function getModuleFields(moduleKey) {
+    const map = {
+        income: [
+            { key: 'income', label: '收入', class: 'income' },
+            { key: 'goods', label: '货款', class: 'goods' }
+        ],
+        family: [
+            { key: 'personalExpense', label: '支出', class: 'cost' }
+        ],
+        debt: [
+            { key: 'amount', label: '欠款', class: 'cost' },
+            { key: 'goodsAmount', label: '货款欠款', class: 'goods' }
+        ]
+    };
+    return map[moduleKey];
+}
+
+function getModuleConfig(moduleKey) {
+    const fields = getModuleFields(moduleKey);
+    const base = {
+        container: domMap[moduleKey].statsContainer,
+        fields: fields,
+        detailFields: fields,
+        showDetails: true,
+        dateKey: 'date',
+        personKey: 'person',
+        noteKey: 'note',
+        createdAtKey: 'createdAt',
+        path: getDbPath(moduleKey),
+        timeKey: 'createdAt',
+    };
+    if (moduleKey === 'debt') {
+        base.showDetails = false;
+        base.detailFields = [];
+    }
+    return base;
+}
+
+function getDbPath(moduleKey) {
+    const map = {
+        income: 'familyRecords',
+        family: 'familyExpenses',
+        debt: 'debtRecords'
+    };
+    return map[moduleKey];
+}
+
+function getSubmitConfig(moduleKey) {
+    const dom = domMap[moduleKey];
+    const map = {
+        income: {
+            dbPath: 'familyRecords',
+            fields: [
+                { dom: dom.amt, key: 'income', parse: parseFloat },
+                { dom: dom.goods, key: 'goods', parse: parseFloat }
+            ],
+            noteDom: dom.note,
+            buttonDom: dom.submit,
+            onSuccess: () => {
+                dom.amt.value = '';
+                dom.goods.value = '';
+                dom.note.value = '';
+                dom.amt.focus();
+            }
+        },
+        family: {
+            dbPath: 'familyExpenses',
+            fields: [
+                { dom: dom.amt, key: 'personalExpense', parse: parseFloat }
+            ],
+            noteDom: dom.note,
+            buttonDom: dom.submit,
+            onSuccess: () => {
+                dom.amt.value = '';
+                dom.note.value = '';
+                dom.amt.focus();
+            }
+        },
+        debt: {
+            dbPath: 'debtRecords',
+            fields: [
+                { dom: dom.amt, key: 'amount', parse: parseFloat },
+                { dom: dom.goods, key: 'goodsAmount', parse: parseFloat }
+            ],
+            noteDom: dom.note,
+            buttonDom: dom.submit,
+            onSuccess: () => {
+                dom.amt.value = '';
+                dom.goods.value = '';
+                dom.note.value = '';
+                dom.amt.focus();
+            }
+        }
+    };
+    return map[moduleKey];
+}
+
+// ================================================================
+//  7.  渲染函数
 // ================================================================
 function renderGlobalStats(moduleKey) {
     const records = state.records[moduleKey] || [];
@@ -296,7 +414,7 @@ function renderGlobalStats(moduleKey) {
 
     let monthRecords = [];
     records.forEach(r => {
-        const dateStr = r.date || new Date(r.createdAt).toISOString().slice(0, 10);
+        const dateStr = getRecordDate(r);
         if (getMonthKey(dateStr) === currentMonthKey) {
             monthRecords.push(r);
         }
@@ -318,8 +436,9 @@ function renderGlobalStats(moduleKey) {
         label = '总支出';
         className = 'cost';
     } else if (moduleKey === 'debt') {
-        monthTotal = monthRecords.reduce((s, r) => s + (r.amount || 0) + (r.goodsAmount || 0), 0);
-        totalAll = records.reduce((s, r) => s + (r.amount || 0) + (r.goodsAmount || 0), 0);
+        // 修复：用 Math.max 避免负数干扰
+        monthTotal = monthRecords.reduce((s, r) => s + Math.max(0, r.amount || 0) + Math.max(0, r.goodsAmount || 0), 0);
+        totalAll = records.reduce((s, r) => s + Math.max(0, r.amount || 0) + Math.max(0, r.goodsAmount || 0), 0);
         label = '总欠款';
         className = 'goods';
     }
@@ -334,6 +453,14 @@ function renderGlobalStats(moduleKey) {
 }
 
 function renderStatsGeneric(moduleKey) {
+    // 无成员时显示引导
+    if (!state.members || state.members.length === 0) {
+        domMap[moduleKey].statsContainer.innerHTML = `
+            <div class="empty-state">暂无成员，请点击「管理成员」添加</div>
+        `;
+        return;
+    }
+
     const records = state.records[moduleKey] || [];
     const selectedDate = state.dates[moduleKey];
     const config = getModuleConfig(moduleKey);
@@ -377,12 +504,7 @@ function renderStatsGeneric(moduleKey) {
 
         if (showDetails && pRecords.length > 0) {
             memberHtml += `<div class="member-detail-list">`;
-            const sorted = [...pRecords].sort((a, b) => {
-                const dateA = a[dateKey] || new Date(a[createdAtKey_]).toISOString().slice(0, 10);
-                const dateB = b[dateKey] || new Date(b[createdAtKey_]).toISOString().slice(0, 10);
-                if (dateB !== dateA) return dateB.localeCompare(dateA);
-                return (b[createdAtKey_] || 0) - (a[createdAtKey_] || 0);
-            });
+            const sorted = sortRecordsByDate(pRecords);
             sorted.forEach(r => {
                 let amtHtml = '';
                 detailFields_.forEach(f => {
@@ -436,13 +558,7 @@ function renderListGeneric(moduleKey) {
         return;
     }
 
-    const sortedRecords = [...records].sort((a, b) => {
-        const dateA = a[dateKey] || new Date(a[timeKey_]).toISOString().slice(0, 10);
-        const dateB = b[dateKey] || new Date(b[timeKey_]).toISOString().slice(0, 10);
-        if (dateB !== dateA) return dateB.localeCompare(dateA);
-        return (b[timeKey_] || 0) - (a[timeKey_] || 0);
-    });
-
+    const sortedRecords = sortRecordsByDate(records);
     const limit = state.displayLimit[moduleKey] || 20;
     const showCount = Math.min(limit, sortedRecords.length);
     const show = sortedRecords.slice(0, showCount);
@@ -534,115 +650,6 @@ function updateLoadMoreButton(container, total, shown, moduleKey) {
     }
 }
 
-// ================================================================
-//  6.  模块配置工厂
-// ================================================================
-const MODULE_KEYS = ['income', 'family', 'debt'];
-
-function getModuleFields(moduleKey) {
-    const map = {
-        income: [
-            { key: 'income', label: '收入', class: 'income' },
-            { key: 'goods', label: '货款', class: 'goods' }
-        ],
-        family: [
-            { key: 'personalExpense', label: '支出', class: 'cost' }
-        ],
-        debt: [
-            { key: 'amount', label: '欠款', class: 'cost' },
-            { key: 'goodsAmount', label: '货款欠款', class: 'goods' }
-        ]
-    };
-    return map[moduleKey];
-}
-
-function getModuleConfig(moduleKey) {
-    const fields = getModuleFields(moduleKey);
-    const base = {
-        container: domMap[moduleKey].statsContainer,
-        grandTotalContainer: null,
-        fields: fields,
-        detailFields: fields,
-        showDetails: true,
-        dateKey: 'date',
-        personKey: 'person',
-        noteKey: 'note',
-        createdAtKey: 'createdAt',
-        path: getDbPath(moduleKey),
-        timeKey: 'createdAt',
-    };
-    if (moduleKey === 'debt') {
-        base.showDetails = false;
-        base.detailFields = [];
-    }
-    return base;
-}
-
-function getDbPath(moduleKey) {
-    const map = {
-        income: 'familyRecords',
-        family: 'familyExpenses',
-        debt: 'debtRecords'
-    };
-    return map[moduleKey];
-}
-
-function getSubmitConfig(moduleKey) {
-    const dom = domMap[moduleKey];
-    const map = {
-        income: {
-            dbPath: 'familyRecords',
-            fields: [
-                { dom: dom.amt, key: 'income', parse: parseFloat },
-                { dom: dom.goods, key: 'goods', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            dateStateKey: 'dates',
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.goods.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        },
-        family: {
-            dbPath: 'familyExpenses',
-            fields: [
-                { dom: dom.amt, key: 'personalExpense', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            dateStateKey: 'dates',
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        },
-        debt: {
-            dbPath: 'debtRecords',
-            fields: [
-                { dom: dom.amt, key: 'amount', parse: parseFloat },
-                { dom: dom.goods, key: 'goodsAmount', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            dateStateKey: 'dates',
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.goods.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        }
-    };
-    return map[moduleKey];
-}
-
-// ================================================================
-//  7.  渲染函数（入口）
-// ================================================================
 function renderStats(moduleKey) {
     renderStatsGeneric(moduleKey);
     renderGlobalStats(moduleKey);
@@ -670,9 +677,10 @@ function scheduleRender() {
 }
 
 // ================================================================
-//  8.  提交逻辑
+//  8.  提交逻辑（增加防连点锁）
 // ================================================================
 function submitRecord(moduleKey) {
+    if (state._submitting) return;
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     const person = state.currentPerson;
     if (!person) { showToast('请先添加成员'); return; }
@@ -701,6 +709,7 @@ function submitRecord(moduleKey) {
         return;
     }
 
+    state._submitting = true;
     const btn = config.buttonDom;
     btn.disabled = true;
     btn.textContent = '提交中...';
@@ -711,22 +720,38 @@ function submitRecord(moduleKey) {
             if (onSuccess) onSuccess();
         })
         .catch((err) => { console.error(err); showToast('提交失败'); })
-        .finally(() => { btn.disabled = false; btn.textContent = '记录'; });
+        .finally(() => {
+            btn.disabled = false;
+            btn.textContent = '记录';
+            state._submitting = false;
+        });
 }
 
 // ================================================================
-//  9.  清除逻辑
+//  9.  清除逻辑（改为清空所选日期，降低风险）
 // ================================================================
 function clearRecords(moduleKey) {
-    const records = state.records[moduleKey] || [];
-    if (!records || records.length === 0) { showToast('没有记录'); return; }
-    const dbPath = getDbPath(moduleKey);
-    const confirmMsg = `确定清空所有${moduleKey === 'income' ? '账本' : moduleKey === 'family' ? '支出' : '债务'}记录吗？不可恢复！`;
-    if (confirm(confirmMsg)) {
-        db.ref(dbPath).remove()
-            .then(() => showToast('已清空'))
-            .catch(() => showToast('清空失败'));
+    const selectedDate = state.dates[moduleKey];
+    if (!selectedDate) {
+        showToast('请先选择日期');
+        return;
     }
+
+    const records = state.records[moduleKey] || [];
+    const toDelete = records.filter(r => r.date === selectedDate);
+    if (toDelete.length === 0) {
+        showToast(`${MODULE_LABELS[moduleKey]}在 ${formatDate(selectedDate)} 没有记录`);
+        return;
+    }
+
+    const confirmMsg = `确定清空 ${formatDate(selectedDate)} 的所有${MODULE_LABELS[moduleKey]}记录吗？`;
+    if (!confirm(confirmMsg)) return;
+
+    const dbPath = getDbPath(moduleKey);
+    const promises = toDelete.map(r => db.ref(`${dbPath}/${r.id}`).remove());
+    Promise.all(promises)
+        .then(() => showToast(`已清空 ${formatDate(selectedDate)} 的记录`))
+        .catch(() => showToast('清空失败，请重试'));
 }
 
 // ================================================================
@@ -744,12 +769,10 @@ function updateLocalRecords(recordsArray, newRecord, type) {
         } else {
             recordsArray.push(newRecord);
         }
-        recordsArray.sort((a, b) => {
-            const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
-            const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
-            if (dateB !== dateA) return dateB.localeCompare(dateA);
-            return (b.createdAt || 0) - (a.createdAt || 0);
-        });
+        // 使用统一的排序函数
+        const sorted = sortRecordsByDate(recordsArray);
+        recordsArray.length = 0;
+        recordsArray.push(...sorted);
     }
 }
 
@@ -763,12 +786,7 @@ function listenModule(moduleKey) {
         let records = [];
         if (data) {
             records = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            records.sort((a, b) => {
-                const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
-                const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
-                if (dateB !== dateA) return dateB.localeCompare(dateA);
-                return (b.createdAt || 0) - (a.createdAt || 0);
-            });
+            records = sortRecordsByDate(records);
         }
         state.records[stateKey] = records;
         state.displayLimit[moduleKey] = 20;
@@ -869,7 +887,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ================================================================
-//  12. 还款功能（逻辑恢复原样：留空显示无备注记录）
+//  12. 还款功能
 // ================================================================
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
@@ -884,17 +902,16 @@ function renderRepaymentResults() {
         filtered = filtered.filter(r => r.note && r.note.toLowerCase().includes(lower));
     }
 
+    // 【关键修复】只显示未结清的债务（金额 > 0）
+    filtered = filtered.filter(r => (r.amount || 0) > 0 || (r.goodsAmount || 0) > 0);
+
     if (filtered.length === 0) {
-        repaymentResults.innerHTML = `<div class="empty-state">${keyword === '' ? '没有无备注的债务记录' : '未找到匹配的债务记录'}</div>`;
+        repaymentResults.innerHTML = `<div class="empty-state">${keyword === '' ? '没有未结清且无备注的债务' : '未找到匹配的未结清债务'}</div>`;
         state.selectedDebtId = null;
         return;
     }
-    const sorted = [...filtered].sort((a, b) => {
-        const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
-        const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
-        if (dateB !== dateA) return dateB.localeCompare(dateA);
-        return (b.createdAt || 0) - (a.createdAt || 0);
-    });
+
+    const sorted = sortRecordsByDate(filtered);
     let html = '';
     sorted.forEach(r => {
         const dateDisplay = r.date ? formatDate(r.date) : formatTime(r.createdAt);
@@ -910,12 +927,12 @@ function renderRepaymentResults() {
                 <div class="right">
                     ${r.amount > 0 ? `<span class="amount">欠 ¥${toFixed(r.amount)}</span>` : ''}
                     ${r.goodsAmount > 0 ? `<span class="goods">货款 ¥${toFixed(r.goodsAmount)}</span>` : ''}
-                    ${r.amount <= 0 && r.goodsAmount <= 0 ? `<span class="empty">已还清</span>` : ''}
                 </div>
             </div>
         `;
     });
     repaymentResults.innerHTML = html;
+
     if (state.selectedDebtId) {
         const stillExists = sorted.some(r => r.id === state.selectedDebtId);
         if (!stillExists) state.selectedDebtId = null;
@@ -1033,8 +1050,6 @@ modalConfirmBtn.addEventListener('click', function() {
 //  14. 启动 & 快捷键
 // ================================================================
 function initApp() {
-    document.querySelectorAll('.grand-total').forEach(el => el.remove());
-
     watchMembers();
     loadData();
     document.getElementById('version').textContent = APP_VERSION;
@@ -1095,4 +1110,4 @@ refreshBtn.addEventListener('click', function() {
     showToast('数据已刷新');
 });
 
-console.log(`版本 ${APP_VERSION} 已启动（排序修正 + 支出单字段 + 还款搜索回退原逻辑）`);
+console.log(`版本 ${APP_VERSION} 已启动（代码清理 + 逻辑修复）`);
