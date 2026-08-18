@@ -1,44 +1,37 @@
 /**
  * ================================================================
  *  家庭账本应用 - 主脚本（DRY 重构版）
- *  本文件包含整个应用的核心逻辑：状态管理、数据监听、渲染、
- *  提交、删除、还款、成员管理、更新公告等。
+ *  v0.52 - 还款搜索逻辑恢复原样（留空显示无备注债务）
  * ================================================================
  */
 
 // ================================================================
 //  1.  Firebase 全局变量（由 firebase.js 注入）
-//     依赖全局的 firebase 对象、db 和 isFirebaseReady
 // ================================================================
 
 // ================================================================
 //  2.  应用状态
-//     集中管理当前人员、成员列表、各类记录、日期选择、债务选中、
-//     分页限制、统计缓存等。
 // ================================================================
 const state = {
-    currentPerson: null,          // 当前记账人姓名
-    members: [],                  // 所有成员姓名数组
-    records: { income: [], family: [], debt: [] }, // 各模块的记录数组
-    dates: { income: null, family: null, debt: null }, // 各模块选中的日期
-    selectedDebtId: null,         // 还款时选中的债务记录 id
-    repaymentSearchKeyword: '',   // 还款搜索关键词
+    currentPerson: null,
+    members: [],
+    records: { income: [], family: [], debt: [] },
+    dates: { income: null, family: null, debt: null },
+    selectedDebtId: null,
+    repaymentSearchKeyword: '',
 
-    displayLimit: { income: 20, family: 20, debt: 20 }, // 列表显示条数限制
-    _statsCache: { income: null, family: null, debt: null }, // 全局统计缓存
-    _lastRecordIds: { income: [], family: [], debt: [] }, // 上次渲染的记录 id 列表，用于判断是否需要重绘
-    _renderScheduled: false,      // 防抖标志，避免重复渲染
+    displayLimit: { income: 20, family: 20, debt: 20 },
+    _statsCache: { income: null, family: null, debt: null },
+    _lastRecordIds: { income: [], family: [], debt: [] },
+    _renderScheduled: false,
 };
 
 // ================================================================
 //  DOM 引用
-//     使用 $ 和 $$ 快速获取 DOM 元素，避免重复 document.querySelector
 // ================================================================
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-// 以下为各个主要 DOM 元素的引用
-const mainApp = $('#mainApp'); // （实际未使用，可忽略）
 const personSelector = $('#personSelector');
 const manageMemberBtn = $('#manageMemberBtn');
 const memberModal = $('#memberModal');
@@ -47,7 +40,6 @@ const memberList = $('#memberList');
 const newMemberInput = $('#newMemberInput');
 const addMemberBtn = $('#addMemberBtn');
 
-// domMap 存储各模块所需的所有 DOM 元素，便于统一访问
 const domMap = {
     income: {
         amt: $('#incomeAmt'),
@@ -63,7 +55,7 @@ const domMap = {
     },
     family: {
         amt: $('#personalExpense'),
-        goods: $('#familyExpense'),
+        goods: null,
         note: $('#familyNote'),
         submit: $('#familySubmitBtn'),
         statsContainer: $('#familyStatsContainer'),
@@ -87,7 +79,6 @@ const domMap = {
     }
 };
 
-// 还款相关元素
 const repaymentAmount = $('#repaymentAmount');
 const repaymentType = $('#repaymentType');
 const repaymentSearch = $('#repaymentSearch');
@@ -97,35 +88,19 @@ const refreshBtn = $('#refreshBtn');
 
 // ================================================================
 //  3.  工具函数
-//     提供日期格式化、数字格式化、Toast 提示、日期获取等常用功能
 // ================================================================
-
-/**
- * 将日期字符串格式化为中文月日，如 "8月16日"
- */
 function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     return `${d.getMonth()+1}月${d.getDate()}日`;
 }
 
-/**
- * 将时间戳格式化为完整日期时间，如 "8月16日 14:30"
- */
 function formatTime(ts) {
     const d = new Date(ts);
     return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-/**
- * 保留两位小数，用于金额显示
- */
 function toFixed(v) { return Number(v).toFixed(2); }
 
-/**
- * 显示 Toast 消息，自动消失
- * @param {string} msg - 消息内容
- * @param {number} duration - 显示毫秒数，默认2000
- */
 function showToast(msg, duration = 2000) {
     const el = $('#toast');
     el.textContent = msg;
@@ -134,30 +109,24 @@ function showToast(msg, duration = 2000) {
     el._timer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
-/**
- * 获取今天的日期字符串（YYYY-MM-DD）
- */
-function getTodayStr() { return new Date().toISOString().slice(0, 10); }
+function getTodayStr() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
 
-/**
- * 根据日期字符串获取所属月份键，如 "2026-08"
- */
 function getMonthKey(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
-/**
- * 获取当前月份键
- */
 function getCurrentMonthKey() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 }
 
-/**
- * 比较两个记录 id 数组是否相等，用于判断列表是否需要重新渲染
- */
 function areRecordIdsEqual(arr1, arr2) {
     if (arr1.length !== arr2.length) return false;
     for (let i = 0; i < arr1.length; i++) {
@@ -168,28 +137,18 @@ function areRecordIdsEqual(arr1, arr2) {
 
 // ================================================================
 //  4.  人员管理
-//     监听 members 节点变化，更新状态并渲染人员按钮，
-//     提供添加/删除成员功能。
 // ================================================================
-
-/**
- * 监听 Firebase 中 members 节点的变化，实时更新成员列表。
- * 如果成员为空，则自动添加默认成员（刘力伟、郑少容）。
- * 默认选中郑少容。
- */
 function watchMembers() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     db.ref('members').on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) {
-            // 没有成员时，初始化两个默认成员
             db.ref('members').push('刘力伟');
             db.ref('members').push('郑少容');
             return;
         }
         const members = Object.values(data).filter(v => typeof v === 'string' && v.trim() !== '');
         state.members = members;
-        // 如果当前没有选中任何成员，或选中的成员已被删除，则默认选中郑少容（若存在），否则选第一个
         if (!state.currentPerson || !members.includes(state.currentPerson)) {
             if (members.includes('郑少容')) {
                 state.currentPerson = '郑少容';
@@ -206,9 +165,6 @@ function watchMembers() {
     });
 }
 
-/**
- * 根据 state.members 和 state.currentPerson 渲染人员切换按钮
- */
 function renderPersonButtons() {
     const members = state.members;
     if (!members || members.length === 0) {
@@ -221,7 +177,6 @@ function renderPersonButtons() {
         html += `<button class="person-btn ${active}" data-person="${name}">${name}</button>`;
     });
     personSelector.innerHTML = html;
-    // 绑定点击事件，切换当前人员并刷新数据
     personSelector.querySelectorAll('.person-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             personSelector.querySelectorAll('.person-btn').forEach(b => b.classList.remove('active'));
@@ -232,12 +187,10 @@ function renderPersonButtons() {
     });
 }
 
-// 管理成员按钮：打开模态框
 manageMemberBtn.addEventListener('click', function() {
     renderMemberList();
     memberModal.classList.add('active');
 });
-// 关闭模态框
 memberModalClose.addEventListener('click', function() {
     memberModal.classList.remove('active');
 });
@@ -245,9 +198,6 @@ memberModal.addEventListener('click', function(e) {
     if (e.target === this) this.classList.remove('active');
 });
 
-/**
- * 渲染成员管理列表，每个成员带删除按钮
- */
 function renderMemberList() {
     const members = state.members;
     if (!members || members.length === 0) {
@@ -264,13 +214,11 @@ function renderMemberList() {
         `;
     });
     memberList.innerHTML = html;
-    // 为每个删除按钮绑定事件
     memberList.querySelectorAll('.del-member-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const name = this.dataset.name;
             if (!confirm(`确定删除成员“${name}”吗？\n该成员的所有记录将被永久删除！`)) return;
 
-            // 1. 从 members 节点删除该成员
             db.ref('members').orderByValue().equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -289,7 +237,6 @@ function renderMemberList() {
                 }
             });
 
-            // 2. 从所有数据表中删除该成员的所有记录（级联清理）
             const paths = ['familyRecords', 'familyExpenses', 'debtRecords'];
             paths.forEach(path => {
                 db.ref(path).orderByChild('person').equalTo(name).once('value', (snapshot) => {
@@ -307,7 +254,6 @@ function renderMemberList() {
     });
 }
 
-// 添加新成员
 addMemberBtn.addEventListener('click', function() {
     const name = newMemberInput.value.trim();
     if (!name) { showToast('请输入姓名'); return; }
@@ -328,14 +274,7 @@ newMemberInput.addEventListener('keydown', (e) => {
 
 // ================================================================
 //  5.  通用渲染函数
-//     包括全局统计、按日期明细统计、记录列表渲染。
-//     使用缓存优化性能。
 // ================================================================
-
-/**
- * 渲染模块的全局统计（本月和总计），显示在顶部。
- * 使用缓存避免重复计算。
- */
 function renderGlobalStats(moduleKey) {
     const records = state.records[moduleKey] || [];
     const container = domMap[moduleKey].globalStats;
@@ -350,13 +289,11 @@ function renderGlobalStats(moduleKey) {
     const currentMonthKey = getCurrentMonthKey();
     const cacheData = state._statsCache[moduleKey];
 
-    // 如果缓存命中且月份和记录数量未变，直接复用
     if (cacheData && cacheData.monthKey === currentMonthKey && cacheData.recordCount === records.length) {
         container.innerHTML = cacheData.html;
         return;
     }
 
-    // 筛选本月记录
     let monthRecords = [];
     records.forEach(r => {
         const dateStr = r.date || new Date(r.createdAt).toISOString().slice(0, 10);
@@ -365,7 +302,6 @@ function renderGlobalStats(moduleKey) {
         }
     });
 
-    // 计算本月总计和全部总计
     let monthTotal = 0;
     let totalAll = 0;
     let label = '';
@@ -377,8 +313,8 @@ function renderGlobalStats(moduleKey) {
         label = '盈利';
         className = 'income';
     } else if (moduleKey === 'family') {
-        monthTotal = monthRecords.reduce((s, r) => s + (r.personalExpense || 0) + (r.familyExpense || 0), 0);
-        totalAll = records.reduce((s, r) => s + (r.personalExpense || 0) + (r.familyExpense || 0), 0);
+        monthTotal = monthRecords.reduce((s, r) => s + (r.personalExpense || 0), 0);
+        totalAll = records.reduce((s, r) => s + (r.personalExpense || 0), 0);
         label = '总支出';
         className = 'cost';
     } else if (moduleKey === 'debt') {
@@ -388,7 +324,6 @@ function renderGlobalStats(moduleKey) {
         className = 'goods';
     }
 
-    // 生成 HTML 并缓存
     const html = `<div class="global-stats">
         <div class="stat-row"><span class="label">本月</span><span class="${className}">${label} ¥${toFixed(monthTotal)}</span></div>
         <div class="stat-row"><span class="label">总计</span><span class="${className}">${label} ¥${toFixed(totalAll)}</span></div>
@@ -398,10 +333,6 @@ function renderGlobalStats(moduleKey) {
     state._statsCache[moduleKey] = { monthKey: currentMonthKey, recordCount: records.length, html };
 }
 
-/**
- * 按所选日期渲染每个成员的明细统计（通用函数）
- * 配置信息通过 getModuleConfig 获取
- */
 function renderStatsGeneric(moduleKey) {
     const records = state.records[moduleKey] || [];
     const selectedDate = state.dates[moduleKey];
@@ -422,15 +353,12 @@ function renderStatsGeneric(moduleKey) {
     const createdAtKey_ = createdAtKey || 'createdAt';
     const detailFields_ = detailFields || fields;
 
-    // 根据日期过滤
     let dayRecords = records;
     if (selectedDate && dateKey) {
         dayRecords = records.filter(r => r[dateKey] === selectedDate);
     }
 
     let memberHtml = '';
-
-    // 遍历所有成员，生成统计卡片
     const members = state.members || [];
     members.forEach(name => {
         const pRecords = dayRecords.filter(r => r[personKey_] === name);
@@ -447,10 +375,14 @@ function renderStatsGeneric(moduleKey) {
                 </span>
             </div>`;
 
-        // 如果需要显示明细，添加记录列表
         if (showDetails && pRecords.length > 0) {
             memberHtml += `<div class="member-detail-list">`;
-            const sorted = [...pRecords].sort((a, b) => (b[createdAtKey_] || 0) - (a[createdAtKey_] || 0));
+            const sorted = [...pRecords].sort((a, b) => {
+                const dateA = a[dateKey] || new Date(a[createdAtKey_]).toISOString().slice(0, 10);
+                const dateB = b[dateKey] || new Date(b[createdAtKey_]).toISOString().slice(0, 10);
+                if (dateB !== dateA) return dateB.localeCompare(dateA);
+                return (b[createdAtKey_] || 0) - (a[createdAtKey_] || 0);
+            });
             sorted.forEach(r => {
                 let amtHtml = '';
                 detailFields_.forEach(f => {
@@ -480,13 +412,8 @@ function renderStatsGeneric(moduleKey) {
     }
 
     container.innerHTML = memberHtml;
-
-    // 底部 grand-total 已移除，此处无操作
 }
 
-/**
- * 渲染模块的记录列表（全部记录），支持加载更多
- */
 function renderListGeneric(moduleKey) {
     const records = state.records[moduleKey] || [];
     const container = domMap[moduleKey].recordList;
@@ -509,20 +436,25 @@ function renderListGeneric(moduleKey) {
         return;
     }
 
-    const limit = state.displayLimit[moduleKey] || 20;
-    const showCount = Math.min(limit, records.length);
-    const show = records.slice(0, showCount);
+    const sortedRecords = [...records].sort((a, b) => {
+        const dateA = a[dateKey] || new Date(a[timeKey_]).toISOString().slice(0, 10);
+        const dateB = b[dateKey] || new Date(b[timeKey_]).toISOString().slice(0, 10);
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        return (b[timeKey_] || 0) - (a[timeKey_] || 0);
+    });
 
-    // 如果记录 id 列表未变化，则只更新加载更多按钮文字，不重绘所有条目
+    const limit = state.displayLimit[moduleKey] || 20;
+    const showCount = Math.min(limit, sortedRecords.length);
+    const show = sortedRecords.slice(0, showCount);
+
     const currentIds = show.map(r => r.id);
     const lastIds = state._lastRecordIds[moduleKey] || [];
     if (areRecordIdsEqual(currentIds, lastIds) && show.length === lastIds.length) {
-        updateLoadMoreButton(container, records.length, showCount, moduleKey);
+        updateLoadMoreButton(container, sortedRecords.length, showCount, moduleKey);
         return;
     }
     state._lastRecordIds[moduleKey] = currentIds;
 
-    // 构建列表 HTML
     let html = '';
     show.forEach((r, idx) => {
         const name = r[personKey_];
@@ -552,26 +484,24 @@ function renderListGeneric(moduleKey) {
         `;
     });
 
-    // 加载更多按钮
-    if (showCount < records.length) {
+    if (showCount < sortedRecords.length) {
         html += `
             <div class="load-more-container">
-                <button class="load-more-btn" data-module="${moduleKey}" data-total="${records.length}">
-                    加载更多（${showCount}/${records.length}）
+                <button class="load-more-btn" data-module="${moduleKey}" data-total="${sortedRecords.length}">
+                    加载更多（${showCount}/${sortedRecords.length}）
                 </button>
             </div>
         `;
-    } else if (records.length > limit) {
+    } else if (sortedRecords.length > limit) {
         html += `
             <div class="load-more-container">
-                <span class="load-all-info">已显示全部 ${records.length} 条</span>
+                <span class="load-all-info">已显示全部 ${sortedRecords.length} 条</span>
             </div>
         `;
     }
 
     container.innerHTML = html;
 
-    // 绑定加载更多按钮点击事件
     container.querySelectorAll('.load-more-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const module = this.dataset.module;
@@ -585,9 +515,6 @@ function renderListGeneric(moduleKey) {
     });
 }
 
-/**
- * 更新加载更多按钮的文字，避免重绘整个列表
- */
 function updateLoadMoreButton(container, total, shown, moduleKey) {
     const existingBtn = container.querySelector('.load-more-btn');
     const existingInfo = container.querySelector('.load-all-info');
@@ -609,15 +536,9 @@ function updateLoadMoreButton(container, total, shown, moduleKey) {
 
 // ================================================================
 //  6.  模块配置工厂
-//     提供各模块的字段定义、数据库路径、DOM 映射等配置信息。
-//     统一管理，方便后续修改。
 // ================================================================
-
 const MODULE_KEYS = ['income', 'family', 'debt'];
 
-/**
- * 获取模块的字段定义（用于统计和列表）
- */
 function getModuleFields(moduleKey) {
     const map = {
         income: [
@@ -625,8 +546,7 @@ function getModuleFields(moduleKey) {
             { key: 'goods', label: '货款', class: 'goods' }
         ],
         family: [
-            { key: 'personalExpense', label: '个人', class: 'cost' },
-            { key: 'familyExpense', label: '家庭', class: 'goods' }
+            { key: 'personalExpense', label: '支出', class: 'cost' }
         ],
         debt: [
             { key: 'amount', label: '欠款', class: 'cost' },
@@ -636,14 +556,11 @@ function getModuleFields(moduleKey) {
     return map[moduleKey];
 }
 
-/**
- * 获取模块的完整配置对象
- */
 function getModuleConfig(moduleKey) {
     const fields = getModuleFields(moduleKey);
     const base = {
         container: domMap[moduleKey].statsContainer,
-        grandTotalContainer: null,   // 已移除
+        grandTotalContainer: null,
         fields: fields,
         detailFields: fields,
         showDetails: true,
@@ -661,9 +578,6 @@ function getModuleConfig(moduleKey) {
     return base;
 }
 
-/**
- * 获取模块对应的 Firebase 数据库路径
- */
 function getDbPath(moduleKey) {
     const map = {
         income: 'familyRecords',
@@ -673,9 +587,6 @@ function getDbPath(moduleKey) {
     return map[moduleKey];
 }
 
-/**
- * 获取提交记录所需的配置（输入框、提交按钮等）
- */
 function getSubmitConfig(moduleKey) {
     const dom = domMap[moduleKey];
     const map = {
@@ -698,15 +609,13 @@ function getSubmitConfig(moduleKey) {
         family: {
             dbPath: 'familyExpenses',
             fields: [
-                { dom: dom.amt, key: 'personalExpense', parse: parseFloat },
-                { dom: dom.goods, key: 'familyExpense', parse: parseFloat }
+                { dom: dom.amt, key: 'personalExpense', parse: parseFloat }
             ],
             noteDom: dom.note,
             buttonDom: dom.submit,
             dateStateKey: 'dates',
             onSuccess: () => {
                 dom.amt.value = '';
-                dom.goods.value = '';
                 dom.note.value = '';
                 dom.amt.focus();
             }
@@ -734,10 +643,6 @@ function getSubmitConfig(moduleKey) {
 // ================================================================
 //  7.  渲染函数（入口）
 // ================================================================
-
-/**
- * 渲染单个模块的统计和列表
- */
 function renderStats(moduleKey) {
     renderStatsGeneric(moduleKey);
     renderGlobalStats(moduleKey);
@@ -747,9 +652,6 @@ function renderList(moduleKey) {
     renderListGeneric(moduleKey);
 }
 
-/**
- * 渲染所有模块，并刷新还款搜索结果
- */
 function renderAll() {
     MODULE_KEYS.forEach(key => {
         renderStats(key);
@@ -758,9 +660,6 @@ function renderAll() {
     renderRepaymentResults();
 }
 
-/**
- * 防抖调度渲染，避免短时间内多次渲染
- */
 function scheduleRender() {
     if (state._renderScheduled) return;
     state._renderScheduled = true;
@@ -772,12 +671,7 @@ function scheduleRender() {
 
 // ================================================================
 //  8.  提交逻辑
-//     将输入框数据组装成记录对象，写入 Firebase
 // ================================================================
-
-/**
- * 提交记录到对应模块
- */
 function submitRecord(moduleKey) {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     const person = state.currentPerson;
@@ -822,9 +716,7 @@ function submitRecord(moduleKey) {
 
 // ================================================================
 //  9.  清除逻辑
-//     清空指定模块的所有记录
 // ================================================================
-
 function clearRecords(moduleKey) {
     const records = state.records[moduleKey] || [];
     if (!records || records.length === 0) { showToast('没有记录'); return; }
@@ -839,12 +731,7 @@ function clearRecords(moduleKey) {
 
 // ================================================================
 //  10. 数据监听（增量）
-//     使用 Firebase 实时监听，仅更新变化的记录，提高性能
 // ================================================================
-
-/**
- * 更新本地记录数组（添加、修改、删除）
- */
 function updateLocalRecords(recordsArray, newRecord, type) {
     const idx = recordsArray.findIndex(r => r.id === newRecord.id);
     if (type === 'removed') {
@@ -857,25 +744,31 @@ function updateLocalRecords(recordsArray, newRecord, type) {
         } else {
             recordsArray.push(newRecord);
         }
-        recordsArray.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        recordsArray.sort((a, b) => {
+            const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
+            const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
+            if (dateB !== dateA) return dateB.localeCompare(dateA);
+            return (b.createdAt || 0) - (a.createdAt || 0);
+        });
     }
 }
 
-/**
- * 监听某个模块的数据变化，初始加载并监听后续增删改
- */
 function listenModule(moduleKey) {
     if (!isFirebaseReady) return;
     const path = getDbPath(moduleKey);
     const stateKey = moduleKey;
 
-    // 初次加载数据
     db.ref(path).once('value', (snapshot) => {
         const data = snapshot.val();
         let records = [];
         if (data) {
             records = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            records.sort((a, b) => {
+                const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
+                const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
+                if (dateB !== dateA) return dateB.localeCompare(dateA);
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            });
         }
         state.records[stateKey] = records;
         state.displayLimit[moduleKey] = 20;
@@ -887,7 +780,6 @@ function listenModule(moduleKey) {
         showToast(`读取数据失败`);
     });
 
-    // 监听子节点添加
     const ref = db.ref(path);
     ref.on('child_added', (snapshot) => {
         const record = { id: snapshot.key, ...snapshot.val() };
@@ -899,7 +791,6 @@ function listenModule(moduleKey) {
         if (moduleKey === 'debt') renderRepaymentResults();
     }, (err) => { console.error(`child_added 监听失败:`, err); });
 
-    // 监听子节点修改
     ref.on('child_changed', (snapshot) => {
         const record = { id: snapshot.key, ...snapshot.val() };
         updateLocalRecords(state.records[stateKey], record, 'changed');
@@ -909,7 +800,6 @@ function listenModule(moduleKey) {
         if (moduleKey === 'debt') renderRepaymentResults();
     }, (err) => { console.error(`child_changed 监听失败:`, err); });
 
-    // 监听子节点删除
     ref.on('child_removed', (snapshot) => {
         const id = snapshot.key;
         const records = state.records[stateKey];
@@ -924,9 +814,6 @@ function listenModule(moduleKey) {
     }, (err) => { console.error(`child_removed 监听失败:`, err); });
 }
 
-/**
- * 启动所有模块的数据监听
- */
 function loadData() {
     if (!isFirebaseReady) {
         showToast('数据库未连接');
@@ -937,10 +824,7 @@ function loadData() {
 
 // ================================================================
 //  11. 事件绑定
-//     绑定日期选择、提交、清空、删除等事件
 // ================================================================
-
-// 为每个模块的日期输入框绑定 change 事件，更新 state.dates 并刷新
 MODULE_KEYS.forEach(key => {
     const dom = domMap[key];
     if (dom.dateInput) {
@@ -959,21 +843,18 @@ MODULE_KEYS.forEach(key => {
     }
 });
 
-// 为每个模块的提交按钮绑定事件
 MODULE_KEYS.forEach(key => {
     domMap[key].submit.addEventListener('click', function() {
         submitRecord(key);
     });
 });
 
-// 为每个模块的清空按钮绑定事件
 MODULE_KEYS.forEach(key => {
     domMap[key].clearBtn.addEventListener('click', function() {
         clearRecords(key);
     });
 });
 
-// 全局事件委托：处理记录列表中的删除按钮
 document.addEventListener('click', function(e) {
     const delBtn = e.target.closest('.del-btn');
     if (!delBtn) return;
@@ -988,31 +869,32 @@ document.addEventListener('click', function(e) {
 });
 
 // ================================================================
-//  12. 还款功能（含还款历史记录）
-//     搜索债务记录，选择一条后输入金额进行还款，自动扣减对应字段并记录历史
+//  12. 还款功能（逻辑恢复原样：留空显示无备注记录）
 // ================================================================
-
-/**
- * 根据搜索关键词过滤债务记录，渲染结果列表
- */
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
     state.repaymentSearchKeyword = keyword;
     let filtered = state.records.debt || [];
-    // 如果关键词为空，只显示无备注的记录；否则按备注包含关键词筛选
+
+    // 原逻辑：留空时只显示没有备注的记录
     if (keyword === '') {
         filtered = filtered.filter(r => !r.note || r.note.trim() === '');
     } else {
         const lower = keyword.toLowerCase();
         filtered = filtered.filter(r => r.note && r.note.toLowerCase().includes(lower));
     }
+
     if (filtered.length === 0) {
         repaymentResults.innerHTML = `<div class="empty-state">${keyword === '' ? '没有无备注的债务记录' : '未找到匹配的债务记录'}</div>`;
         state.selectedDebtId = null;
         return;
     }
-    // 按创建时间倒序排列
-    const sorted = [...filtered].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const sorted = [...filtered].sort((a, b) => {
+        const dateA = a.date || new Date(a.createdAt || 0).toISOString().slice(0, 10);
+        const dateB = b.date || new Date(b.createdAt || 0).toISOString().slice(0, 10);
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        return (b.createdAt || 0) - (a.createdAt || 0);
+    });
     let html = '';
     sorted.forEach(r => {
         const dateDisplay = r.date ? formatDate(r.date) : formatTime(r.createdAt);
@@ -1034,7 +916,6 @@ function renderRepaymentResults() {
         `;
     });
     repaymentResults.innerHTML = html;
-    // 如果之前选中的记录不在结果中，清除选中状态
     if (state.selectedDebtId) {
         const stillExists = sorted.some(r => r.id === state.selectedDebtId);
         if (!stillExists) state.selectedDebtId = null;
@@ -1042,13 +923,11 @@ function renderRepaymentResults() {
     if (!state.selectedDebtId && sorted.length > 0) {
         state.selectedDebtId = sorted[0].id;
     }
-    // 更新选中样式
     document.querySelectorAll('.repayment-result-item').forEach(el => {
         el.classList.toggle('selected', el.dataset.id === state.selectedDebtId);
     });
 }
 
-// 点击结果项切换选中状态
 repaymentResults.addEventListener('click', function(e) {
     const item = e.target.closest('.repayment-result-item');
     if (!item) return;
@@ -1058,12 +937,10 @@ repaymentResults.addEventListener('click', function(e) {
     renderRepaymentResults();
 });
 
-// 搜索框输入时重新渲染结果
 repaymentSearch.addEventListener('input', function() {
     renderRepaymentResults();
 });
 
-// 确认还款按钮
 repaymentSubmitBtn.addEventListener('click', function() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     if (!state.selectedDebtId) {
@@ -1096,10 +973,8 @@ repaymentSubmitBtn.addEventListener('click', function() {
     btn.disabled = true;
     btn.textContent = '还款中...';
 
-    // 更新债务记录
     db.ref(`debtRecords/${state.selectedDebtId}`).update(updateData)
         .then(() => {
-            // 记录还款历史
             const historyRef = db.ref('repaymentHistory').push();
             const historyRecord = {
                 debtId: state.selectedDebtId,
@@ -1130,9 +1005,7 @@ repaymentSubmitBtn.addEventListener('click', function() {
 
 // ================================================================
 //  13. 更新公告
-//     检查版本变化，首次显示更新日志
 // ================================================================
-
 const modalOverlay = document.getElementById('updateModal');
 const oldVersionSpan = document.getElementById('oldVersion');
 const newVersionSpan = document.getElementById('newVersion');
@@ -1158,11 +1031,8 @@ modalConfirmBtn.addEventListener('click', function() {
 
 // ================================================================
 //  14. 启动 & 快捷键
-//     初始化应用，设置 Enter 键跳转和点击统计卡片切换人员
 // ================================================================
-
 function initApp() {
-    // 移除底部汇总框（v0.50 已废弃）
     document.querySelectorAll('.grand-total').forEach(el => el.remove());
 
     watchMembers();
@@ -1173,25 +1043,35 @@ function initApp() {
 
 initApp();
 
-// 快捷键：输入框中 Enter 跳转到下一个输入框
+// 快捷键
 const focusMap = {
     income: { amt: domMap.income.amt, goods: domMap.income.goods, note: domMap.income.note },
-    family: { amt: domMap.family.amt, goods: domMap.family.goods, note: domMap.family.note },
+    family: { amt: domMap.family.amt, note: domMap.family.note },
     debt: { amt: domMap.debt.amt, goods: domMap.debt.goods, note: domMap.debt.note }
 };
 
 Object.keys(focusMap).forEach(key => {
     const f = focusMap[key];
-    f.amt.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); f.goods.focus(); } });
-    f.goods.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); f.note.focus(); } });
+    if (f.amt) {
+        f.amt.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (f.goods) f.goods.focus();
+                else if (f.note) f.note.focus();
+            }
+        });
+    }
+    if (f.goods) {
+        f.goods.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); if (f.note) f.note.focus(); }
+        });
+    }
 });
 
-// 还款金额输入框回车触发还款
 repaymentAmount.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); repaymentSubmitBtn.click(); }
 });
 
-// 点击统计卡片中的成员名称，快速切换当前人员
 document.addEventListener('click', function(e) {
     const card = e.target.closest('.member-stat-card');
     if (!card) return;
@@ -1207,7 +1087,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 刷新按钮：重置分页和缓存，重新渲染
 refreshBtn.addEventListener('click', function() {
     state.displayLimit = { income: 20, family: 20, debt: 20 };
     state._lastRecordIds = { income: [], family: [], debt: [] };
@@ -1216,4 +1095,4 @@ refreshBtn.addEventListener('click', function() {
     showToast('数据已刷新');
 });
 
-console.log(`版本 ${APP_VERSION} 已启动（DRY 重构版 + 统计汇总优化 + 移除底部汇总框）`);
+console.log(`版本 ${APP_VERSION} 已启动（排序修正 + 支出单字段 + 还款搜索回退原逻辑）`);
