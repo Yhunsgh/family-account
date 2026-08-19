@@ -1,6 +1,6 @@
 /**
  * ================================================================
- *  家庭账本 - 统一流水账模型 (v1.10)
+ *  家庭账本 - 统一流水账模型 (v0.82)
  *  数据存入 records 表，按 type 区分：income / expense / debt
  *  income: { income, goods }  expense: { personalExpense }  
  *  debt: { amount, goodsAmount }
@@ -388,6 +388,7 @@ function renderStats(type) {
             if (type === 'income') {
                 const inc = r.income || 0;
                 const gds = r.goods || 0;
+                // 明细中保持一行显示，因为空间有限
                 amtDisplay = `收入 ¥${toFixed(inc)} 货款 ¥${toFixed(gds)}`;
             } else if (type === 'expense') {
                 amtDisplay = `¥${toFixed(r.personalExpense || 0)}`;
@@ -437,9 +438,16 @@ function renderList(type) {
         const dateDisplay = formatDate(getRecordDate(r));
         let amtDisplay = '';
         if (type === 'income') {
-            amtDisplay = `收入 ¥${toFixed(r.income||0)} 货款 ¥${toFixed(r.goods||0)}`;
+            // ========== 修改：只显示有值的项 ==========
+            const inc = r.income || 0;
+            const gds = r.goods || 0;
+            let parts = [];
+            if (inc > 0) parts.push(`收入 ¥${toFixed(inc)}`);
+            if (gds > 0) parts.push(`货款 ¥${toFixed(gds)}`);
+            if (parts.length === 0) parts.push('¥0.00');
+            amtDisplay = parts.join(' ');
         } else if (type === 'expense') {
-            amtDisplay = `¥${toFixed(r.personalExpense||0)}`;
+            amtDisplay = `¥${toFixed(r.personalExpense || 0)}`;
         } else if (type === 'debt') {
             const amt = r.amount || 0;
             const gds = r.goodsAmount || 0;
@@ -584,7 +592,6 @@ function submitRecord(type) {
         const amt = parseFloat(d.amt.value) || 0;
         record.amount = amt;
         record.goodsAmount = 0;
-        // 根据下拉选择，决定存到 amount 还是 goodsAmount
         if (d.type.value === 'goodsAmount') {
             record.goodsAmount = amt;
             record.amount = 0;
