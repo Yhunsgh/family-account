@@ -12,11 +12,51 @@
     <!-- 人员切换 + 管理入口 -->
     <div class="person-section">
         <div class="section-label">
-            <span>谁在记账？ <span class="badge">点击切换</span></span>
+            <div class="person-chips" id="personChips">
+                <!-- 动态由 JavaScript 生成小标签 -->
+            </div>
             <button class="manage-btn" id="manageMemberBtn">管理成员</button>
         </div>
-        <div class="person-selector" id="personSelector">
-            <!-- 动态由 JavaScript 生成 -->
+    </div>
+
+    <!-- 财务总览卡片 -->
+    <div class="overview-section" id="overviewSection">
+        <div class="overview-title">财务总览</div>
+        <div class="overview-grid">
+            <div class="overview-group">
+                <div class="group-label">本月</div>
+                <div class="group-items">
+                    <div class="overview-item">
+                        <span class="label">盈利</span>
+                        <span class="value income" id="overviewMonthIncome">¥0.00</span>
+                    </div>
+                    <div class="overview-item">
+                        <span class="label">支出</span>
+                        <span class="value expense" id="overviewMonthExpense">¥0.00</span>
+                    </div>
+                    <div class="overview-item">
+                        <span class="label">新增欠款</span>
+                        <span class="value debt" id="overviewMonthDebt">¥0.00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="overview-group">
+                <div class="group-label">总计</div>
+                <div class="group-items">
+                    <div class="overview-item">
+                        <span class="label">盈利</span>
+                        <span class="value income" id="overviewTotalIncome">¥0.00</span>
+                    </div>
+                    <div class="overview-item">
+                        <span class="label">支出</span>
+                        <span class="value expense" id="overviewTotalExpense">¥0.00</span>
+                    </div>
+                    <div class="overview-item">
+                        <span class="label">当前欠款</span>
+                        <span class="value debt" id="overviewTotalDebt">¥0.00</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -45,9 +85,9 @@
                     </div>
                     <div class="field">
                         <label>备注</label>
-                        <textarea id="noteInput" placeholder="请输入备注" rows="1"></textarea>
+                        <textarea id="incomeNote" placeholder="请输入备注" rows="1"></textarea>
                     </div>
-                    <button class="btn-submit" id="submitBtn">记录</button>
+                    <button class="btn-submit" id="incomeSubmitBtn">记录</button>
                 </div>
                 <div class="stats-section">
                     <div id="incomeGlobalStats" class="global-stats-container"></div>
@@ -64,40 +104,40 @@
             </div>
         </div>
 
-        <!-- 列2：支出（单字段） -->
+        <!-- 列2：支出 -->
         <div class="col">
             <div class="module-box">
                 <div class="module-header">
                     <h2>支出</h2>
                     <div class="date-picker">
                         日期：
-                        <input type="date" id="familyDate" />
+                        <input type="date" id="expenseDate" />
                     </div>
                 </div>
                 <div class="input-group">
                     <div class="input-row">
                         <div class="field">
                             <label>支出 (¥)</label>
-                            <div class="currency"><input type="number" id="personalExpense" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
+                            <div class="currency"><input type="number" id="expenseAmt" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                     </div>
                     <div class="field">
                         <label>备注</label>
-                        <textarea id="familyNote" placeholder="请输入备注" rows="1"></textarea>
+                        <textarea id="expenseNote" placeholder="请输入备注" rows="1"></textarea>
                     </div>
-                    <button class="btn-submit" id="familySubmitBtn">记录</button>
+                    <button class="btn-submit" id="expenseSubmitBtn">记录</button>
                 </div>
                 <div class="stats-section">
-                    <div id="familyGlobalStats" class="global-stats-container"></div>
+                    <div id="expenseGlobalStats" class="global-stats-container"></div>
                     <div class="section-label">所选日期的明细</div>
-                    <div id="familyStatsContainer"></div>
+                    <div id="expenseStatsContainer"></div>
                 </div>
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部支出记录</div>
-                        <button class="clear-btn" id="clearFamilyBtn">清空所选日期</button>
+                        <button class="clear-btn" id="clearExpenseBtn">清空所选日期</button>
                     </div>
-                    <div class="record-list" id="familyRecordList"></div>
+                    <div class="record-list" id="expenseRecordList"></div>
                 </div>
             </div>
         </div>
@@ -115,12 +155,15 @@
                 <div class="input-group">
                     <div class="input-row">
                         <div class="field">
-                            <label>欠款 (¥)</label>
-                            <div class="currency"><input type="number" id="debtAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
+                            <label>欠款金额 (¥)</label>
+                            <div class="currency"><input type="number" id="debtAmt" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
                         <div class="field">
-                            <label>货款欠款 (¥)</label>
-                            <div class="currency"><input type="number" id="debtGoodsAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
+                            <label>欠款类型</label>
+                            <select id="debtType">
+                                <option value="amount">欠款</option>
+                                <option value="goodsAmount">货款欠款</option>
+                            </select>
                         </div>
                     </div>
                     <div class="field">

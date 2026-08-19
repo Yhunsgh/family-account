@@ -49,65 +49,51 @@ body {
 }
 .app-footer #version { color: var(--color-primary); font-weight: 600; }
 
-/* ========== 人员选择 ========== */
-.person-section { margin-bottom: 20px; }
+/* ========== 人员切换 ========== */
+.person-section { margin-bottom: 16px; }
 .section-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-text-light);
-    margin-bottom: 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 6px;
 }
-.section-label .badge {
-    font-size: 12px;
-    background: #e8ddd2;
-    padding: 0 10px;
+.person-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.person-chip {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 2px 10px;
     border-radius: 20px;
-    font-weight: 400;
-    color: #6b4f38;
+    border: 1px solid var(--color-border);
+    background: #f5f0eb;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: all 0.15s;
+    line-height: 1.4;
+}
+.person-chip:active { transform: scale(0.95); }
+.person-chip.active {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(201,167,123,0.3);
 }
 .manage-btn {
     background: transparent;
     border: 1.5px solid var(--color-border);
     border-radius: 20px;
     padding: 4px 14px;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--color-text-light);
     cursor: pointer;
     transition: all 0.15s;
 }
 .manage-btn:active { background: var(--color-border); }
-
-.person-selector {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.person-btn {
-    flex: 1;
-    padding: 12px 0;
-    border: 2px solid var(--color-border);
-    border-radius: 18px;
-    background: #fcfaf8;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-light);
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-    user-select: none;
-    min-width: 80px;
-}
-.person-btn:active { transform: scale(0.96); }
-.person-btn.active {
-    border-color: var(--color-primary);
-    background: #f5ede4;
-    box-shadow: 0 0 0 3px rgba(201,167,123,0.2);
-}
 
 /* ========== 三栏布局 ========== */
 .triple-col {
@@ -324,9 +310,19 @@ body {
     margin-top: 4px;
     background: var(--color-primary-dark);
     box-shadow: 0 4px 12px rgba(184,138,94,0.3);
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
 }
 .repayment-btn:hover { background: #a67a52; }
 .repayment-btn:active { transform: scale(0.97); }
+.repayment-btn:disabled { opacity: 0.6; }
 
 /* ========== 统计看板 ========== */
 .stats-section {
@@ -742,6 +738,63 @@ body {
     margin: 16px 0;
 }
 
+/* ========== 财务总览卡片 ========== */
+.overview-section {
+    background: linear-gradient(135deg, #f8f4ef 0%, #f0e9e1 100%);
+    border-radius: var(--radius);
+    padding: 18px 20px 16px;
+    margin: 16px 0 20px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+}
+.overview-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text-light);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+.overview-grid {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+.overview-group {
+    flex: 1;
+    min-width: 200px;
+}
+.overview-group .group-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+    border-bottom: 1px dashed var(--color-border);
+    padding-bottom: 4px;
+}
+.group-items {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.overview-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.overview-item .label {
+    font-size: 12px;
+    color: var(--color-muted);
+    font-weight: 500;
+}
+.overview-item .value {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+.overview-item .value.income { color: var(--color-income); }
+.overview-item .value.expense { color: var(--color-cost); }
+.overview-item .value.debt { color: var(--color-goods); }
+
 /* ========== 响应式 ========== */
 @media (max-width: 900px) {
     .triple-col { flex-wrap: wrap; }
@@ -759,8 +812,23 @@ body {
     .repayment-row { flex-direction: column; }
     .repayment-result-item { font-size: 12px; }
     .repayment-result-item .left .note { max-width: 70px; }
+
+    .overview-grid {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .overview-group .group-items {
+        gap: 12px;
+    }
+    .overview-item .value {
+        font-size: 17px;
+    }
+    .overview-section {
+        padding: 14px 14px 12px;
+        margin: 12px 0 16px;
+    }
 }
 @media (max-width: 400px) {
-    .person-btn { font-size: 16px; padding: 10px 0; }
+    .person-chip { font-size: 12px; padding: 1px 8px; }
     .module-header h2 { font-size: 18px; }
 }
