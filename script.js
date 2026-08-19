@@ -1,7 +1,7 @@
 /**
  * ================================================================
- *  家庭账本应用 - 主脚本（v0.53 清理版）
- *  改进：提取通用排序函数、删除冗余代码、修复多个逻辑漏洞
+ *  家庭账本应用 - 主脚本（v0.54 优化版）
+ *  优化：合并模块配置、移除重复渲染、减少排序冗余、修复时区
  * ================================================================
  */
 
@@ -89,9 +89,86 @@ const refreshBtn = $('#refreshBtn');
 const MODULE_KEYS = ['income', 'family', 'debt'];
 const MODULE_LABELS = { income: '账本', family: '支出', debt: '债务' };
 
-/** 获取记录的日期（优先使用 date 字段，否则从 createdAt 提取） */
+/**
+ * 模块元数据配置（统一维护）
+ * 包含：数据库路径、字段定义、DOM 键名、成功回调等
+ */
+const MODULE_META = {
+    income: {
+        path: 'familyRecords',
+        label: '账本',
+        fields: [
+            { key: 'income', label: '收入', class: 'income', domKey: 'amt' },
+            { key: 'goods', label: '货款', class: 'goods', domKey: 'goods' }
+        ],
+        noteDomKey: 'note',
+        submitDomKey: 'submit',
+        onSuccess: (dom) => {
+            dom.amt.value = '';
+            dom.goods.value = '';
+            dom.note.value = '';
+            dom.amt.focus();
+        },
+        statsContainerKey: 'statsContainer',
+        recordListKey: 'recordList',
+        dateInputKey: 'dateInput',
+        clearBtnKey: 'clearBtn',
+        globalStatsKey: 'globalStats',
+        showDetails: true,
+    },
+    family: {
+        path: 'familyExpenses',
+        label: '支出',
+        fields: [
+            { key: 'personalExpense', label: '支出', class: 'cost', domKey: 'amt' }
+        ],
+        noteDomKey: 'note',
+        submitDomKey: 'submit',
+        onSuccess: (dom) => {
+            dom.amt.value = '';
+            dom.note.value = '';
+            dom.amt.focus();
+        },
+        statsContainerKey: 'statsContainer',
+        recordListKey: 'recordList',
+        dateInputKey: 'dateInput',
+        clearBtnKey: 'clearBtn',
+        globalStatsKey: 'globalStats',
+        showDetails: true,
+    },
+    debt: {
+        path: 'debtRecords',
+        label: '债务',
+        fields: [
+            { key: 'amount', label: '欠款', class: 'cost', domKey: 'amt' },
+            { key: 'goodsAmount', label: '货款欠款', class: 'goods', domKey: 'goods' }
+        ],
+        noteDomKey: 'note',
+        submitDomKey: 'submit',
+        onSuccess: (dom) => {
+            dom.amt.value = '';
+            dom.goods.value = '';
+            dom.note.value = '';
+            dom.amt.focus();
+        },
+        statsContainerKey: 'statsContainer',
+        recordListKey: 'recordList',
+        dateInputKey: 'dateInput',
+        clearBtnKey: 'clearBtn',
+        globalStatsKey: 'globalStats',
+        showDetails: false,  // 债务模块明细中不显示详细条目
+    }
+};
+
+/** 获取记录的日期（优先使用 date 字段，否则从 createdAt 提取本地日期） */
 function getRecordDate(record) {
-    return record.date || new Date(record.createdAt || 0).toISOString().slice(0, 10);
+    if (record.date) return record.date;
+    const ts = record.createdAt || 0;
+    const d = new Date(ts);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 /** 通用排序：按日期倒序，日期相同按创建时间倒序 */
@@ -106,7 +183,7 @@ function sortRecordsByDate(records) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);  // 直接用本地时区解析
+    const d = new Date(dateStr);
     return `${d.getMonth()+1}月${d.getDate()}日`;
 }
 
@@ -134,7 +211,7 @@ function getTodayStr() {
 }
 
 function getMonthKey(dateStr) {
-    const d = new Date(dateStr);  // 直接用本地时区
+    const d = new Date(dateStr);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
@@ -291,107 +368,7 @@ newMemberInput.addEventListener('keydown', (e) => {
 });
 
 // ================================================================
-//  6.  模块配置工厂
-// ================================================================
-function getModuleFields(moduleKey) {
-    const map = {
-        income: [
-            { key: 'income', label: '收入', class: 'income' },
-            { key: 'goods', label: '货款', class: 'goods' }
-        ],
-        family: [
-            { key: 'personalExpense', label: '支出', class: 'cost' }
-        ],
-        debt: [
-            { key: 'amount', label: '欠款', class: 'cost' },
-            { key: 'goodsAmount', label: '货款欠款', class: 'goods' }
-        ]
-    };
-    return map[moduleKey];
-}
-
-function getModuleConfig(moduleKey) {
-    const fields = getModuleFields(moduleKey);
-    const base = {
-        container: domMap[moduleKey].statsContainer,
-        fields: fields,
-        detailFields: fields,
-        showDetails: true,
-        dateKey: 'date',
-        personKey: 'person',
-        noteKey: 'note',
-        createdAtKey: 'createdAt',
-        path: getDbPath(moduleKey),
-        timeKey: 'createdAt',
-    };
-    if (moduleKey === 'debt') {
-        base.showDetails = false;
-        base.detailFields = [];
-    }
-    return base;
-}
-
-function getDbPath(moduleKey) {
-    const map = {
-        income: 'familyRecords',
-        family: 'familyExpenses',
-        debt: 'debtRecords'
-    };
-    return map[moduleKey];
-}
-
-function getSubmitConfig(moduleKey) {
-    const dom = domMap[moduleKey];
-    const map = {
-        income: {
-            dbPath: 'familyRecords',
-            fields: [
-                { dom: dom.amt, key: 'income', parse: parseFloat },
-                { dom: dom.goods, key: 'goods', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.goods.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        },
-        family: {
-            dbPath: 'familyExpenses',
-            fields: [
-                { dom: dom.amt, key: 'personalExpense', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        },
-        debt: {
-            dbPath: 'debtRecords',
-            fields: [
-                { dom: dom.amt, key: 'amount', parse: parseFloat },
-                { dom: dom.goods, key: 'goodsAmount', parse: parseFloat }
-            ],
-            noteDom: dom.note,
-            buttonDom: dom.submit,
-            onSuccess: () => {
-                dom.amt.value = '';
-                dom.goods.value = '';
-                dom.note.value = '';
-                dom.amt.focus();
-            }
-        }
-    };
-    return map[moduleKey];
-}
-
-// ================================================================
-//  7.  渲染函数
+//  6.  渲染函数
 // ================================================================
 function renderGlobalStats(moduleKey) {
     const records = state.records[moduleKey] || [];
@@ -436,7 +413,6 @@ function renderGlobalStats(moduleKey) {
         label = '总支出';
         className = 'cost';
     } else if (moduleKey === 'debt') {
-        // 修复：用 Math.max 避免负数干扰
         monthTotal = monthRecords.reduce((s, r) => s + Math.max(0, r.amount || 0) + Math.max(0, r.goodsAmount || 0), 0);
         totalAll = records.reduce((s, r) => s + Math.max(0, r.amount || 0) + Math.max(0, r.goodsAmount || 0), 0);
         label = '总欠款';
@@ -463,22 +439,20 @@ function renderStatsGeneric(moduleKey) {
 
     const records = state.records[moduleKey] || [];
     const selectedDate = state.dates[moduleKey];
-    const config = getModuleConfig(moduleKey);
+    const meta = MODULE_META[moduleKey];
     const {
-        container,
         fields,
-        detailFields,
         showDetails,
-        dateKey,
-        personKey,
-        noteKey,
-        createdAtKey,
-    } = config;
+        dateKey = 'date',
+        personKey = 'person',
+        noteKey = 'note',
+        createdAtKey = 'createdAt',
+    } = meta;
+    const container = domMap[moduleKey].statsContainer;
 
     const personKey_ = personKey || 'person';
     const noteKey_ = noteKey || 'note';
     const createdAtKey_ = createdAtKey || 'createdAt';
-    const detailFields_ = detailFields || fields;
 
     let dayRecords = records;
     if (selectedDate && dateKey) {
@@ -504,10 +478,10 @@ function renderStatsGeneric(moduleKey) {
 
         if (showDetails && pRecords.length > 0) {
             memberHtml += `<div class="member-detail-list">`;
-            const sorted = sortRecordsByDate(pRecords);
-            sorted.forEach(r => {
+            // pRecords 已经有序，直接使用
+            pRecords.forEach(r => {
                 let amtHtml = '';
-                detailFields_.forEach(f => {
+                fields.forEach(f => {
                     const val = r[f.key] || 0;
                     if (val > 0) amtHtml += `<span class="${f.class}">${f.label} ¥${toFixed(val)}</span>`;
                 });
@@ -539,15 +513,15 @@ function renderStatsGeneric(moduleKey) {
 function renderListGeneric(moduleKey) {
     const records = state.records[moduleKey] || [];
     const container = domMap[moduleKey].recordList;
-    const config = getModuleConfig(moduleKey);
+    const meta = MODULE_META[moduleKey];
     const {
         fields,
         path,
-        dateKey,
-        timeKey,
-        personKey,
-        noteKey,
-    } = config;
+        dateKey = 'date',
+        timeKey = 'createdAt',
+        personKey = 'person',
+        noteKey = 'note',
+    } = meta;
 
     const personKey_ = personKey || 'person';
     const noteKey_ = noteKey || 'note';
@@ -558,15 +532,15 @@ function renderListGeneric(moduleKey) {
         return;
     }
 
-    const sortedRecords = sortRecordsByDate(records);
+    // records 已经有序，直接使用
     const limit = state.displayLimit[moduleKey] || 20;
-    const showCount = Math.min(limit, sortedRecords.length);
-    const show = sortedRecords.slice(0, showCount);
+    const showCount = Math.min(limit, records.length);
+    const show = records.slice(0, showCount);
 
     const currentIds = show.map(r => r.id);
     const lastIds = state._lastRecordIds[moduleKey] || [];
     if (areRecordIdsEqual(currentIds, lastIds) && show.length === lastIds.length) {
-        updateLoadMoreButton(container, sortedRecords.length, showCount, moduleKey);
+        updateLoadMoreButton(container, records.length, showCount, moduleKey);
         return;
     }
     state._lastRecordIds[moduleKey] = currentIds;
@@ -600,18 +574,18 @@ function renderListGeneric(moduleKey) {
         `;
     });
 
-    if (showCount < sortedRecords.length) {
+    if (showCount < records.length) {
         html += `
             <div class="load-more-container">
-                <button class="load-more-btn" data-module="${moduleKey}" data-total="${sortedRecords.length}">
-                    加载更多（${showCount}/${sortedRecords.length}）
+                <button class="load-more-btn" data-module="${moduleKey}" data-total="${records.length}">
+                    加载更多（${showCount}/${records.length}）
                 </button>
             </div>
         `;
-    } else if (sortedRecords.length > limit) {
+    } else if (records.length > limit) {
         html += `
             <div class="load-more-container">
-                <span class="load-all-info">已显示全部 ${sortedRecords.length} 条</span>
+                <span class="load-all-info">已显示全部 ${records.length} 条</span>
             </div>
         `;
     }
@@ -677,7 +651,7 @@ function scheduleRender() {
 }
 
 // ================================================================
-//  8.  提交逻辑（增加防连点锁）
+//  7.  提交逻辑（使用 MODULE_META）
 // ================================================================
 function submitRecord(moduleKey) {
     if (state._submitting) return;
@@ -685,12 +659,13 @@ function submitRecord(moduleKey) {
     const person = state.currentPerson;
     if (!person) { showToast('请先添加成员'); return; }
 
-    const config = getSubmitConfig(moduleKey);
-    const { dbPath, fields, noteDom, onSuccess } = config;
+    const meta = MODULE_META[moduleKey];
+    const dom = domMap[moduleKey];
+    const { path, fields, noteDomKey, onSuccess } = meta;
 
     const record = {
         person,
-        note: noteDom.value.trim() || '',
+        note: dom[noteDomKey].value.trim() || '',
         createdAt: Date.now()
     };
     if (state.dates[moduleKey]) {
@@ -699,7 +674,8 @@ function submitRecord(moduleKey) {
 
     let hasValue = false;
     fields.forEach(f => {
-        const val = f.parse(f.dom.value) || 0;
+        const input = dom[f.domKey];
+        const val = parseFloat(input.value) || 0;
         record[f.key] = val;
         if (val > 0) hasValue = true;
     });
@@ -710,14 +686,14 @@ function submitRecord(moduleKey) {
     }
 
     state._submitting = true;
-    const btn = config.buttonDom;
+    const btn = dom[meta.submitDomKey];
     btn.disabled = true;
     btn.textContent = '提交中...';
-    const newRef = db.ref(dbPath).push();
+    const newRef = db.ref(path).push();
     newRef.set(record)
         .then(() => {
             showToast('记录成功');
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(dom);
         })
         .catch((err) => { console.error(err); showToast('提交失败'); })
         .finally(() => {
@@ -728,7 +704,7 @@ function submitRecord(moduleKey) {
 }
 
 // ================================================================
-//  9.  清除逻辑（改为清空所选日期，降低风险）
+//  8.  清除逻辑（清空所选日期）
 // ================================================================
 function clearRecords(moduleKey) {
     const selectedDate = state.dates[moduleKey];
@@ -747,7 +723,7 @@ function clearRecords(moduleKey) {
     const confirmMsg = `确定清空 ${formatDate(selectedDate)} 的所有${MODULE_LABELS[moduleKey]}记录吗？`;
     if (!confirm(confirmMsg)) return;
 
-    const dbPath = getDbPath(moduleKey);
+    const dbPath = MODULE_META[moduleKey].path;
     const promises = toDelete.map(r => db.ref(`${dbPath}/${r.id}`).remove());
     Promise.all(promises)
         .then(() => showToast(`已清空 ${formatDate(selectedDate)} 的记录`))
@@ -755,7 +731,7 @@ function clearRecords(moduleKey) {
 }
 
 // ================================================================
-//  10. 数据监听（增量）
+//  9.  数据监听（增量）
 // ================================================================
 function updateLocalRecords(recordsArray, newRecord, type) {
     const idx = recordsArray.findIndex(r => r.id === newRecord.id);
@@ -763,22 +739,21 @@ function updateLocalRecords(recordsArray, newRecord, type) {
         if (idx !== -1) recordsArray.splice(idx, 1);
         return;
     }
-    if (type === 'changed' || type === 'added') {
-        if (idx !== -1) {
-            recordsArray[idx] = newRecord;
-        } else {
-            recordsArray.push(newRecord);
-        }
-        // 使用统一的排序函数
-        const sorted = sortRecordsByDate(recordsArray);
-        recordsArray.length = 0;
-        recordsArray.push(...sorted);
+    // added 或 changed
+    if (idx !== -1) {
+        recordsArray[idx] = newRecord;
+    } else {
+        recordsArray.push(newRecord);
     }
+    // 重新排序并保持有序
+    const sorted = sortRecordsByDate(recordsArray);
+    recordsArray.length = 0;
+    recordsArray.push(...sorted);
 }
 
 function listenModule(moduleKey) {
     if (!isFirebaseReady) return;
-    const path = getDbPath(moduleKey);
+    const path = MODULE_META[moduleKey].path;
     const stateKey = moduleKey;
 
     db.ref(path).once('value', (snapshot) => {
@@ -806,7 +781,7 @@ function listenModule(moduleKey) {
         state._lastRecordIds[moduleKey] = [];
         state._statsCache[moduleKey] = null;
         scheduleRender();
-        if (moduleKey === 'debt') renderRepaymentResults();
+        // 移除多余的 renderRepaymentResults，由 scheduleRender 统一触发
     }, (err) => { console.error(`child_added 监听失败:`, err); });
 
     ref.on('child_changed', (snapshot) => {
@@ -815,7 +790,6 @@ function listenModule(moduleKey) {
         state._lastRecordIds[moduleKey] = [];
         state._statsCache[moduleKey] = null;
         scheduleRender();
-        if (moduleKey === 'debt') renderRepaymentResults();
     }, (err) => { console.error(`child_changed 监听失败:`, err); });
 
     ref.on('child_removed', (snapshot) => {
@@ -827,7 +801,6 @@ function listenModule(moduleKey) {
             state._lastRecordIds[moduleKey] = [];
             state._statsCache[moduleKey] = null;
             scheduleRender();
-            if (moduleKey === 'debt') renderRepaymentResults();
         }
     }, (err) => { console.error(`child_removed 监听失败:`, err); });
 }
@@ -841,7 +814,7 @@ function loadData() {
 }
 
 // ================================================================
-//  11. 事件绑定
+//  10. 事件绑定
 // ================================================================
 MODULE_KEYS.forEach(key => {
     const dom = domMap[key];
@@ -887,14 +860,13 @@ document.addEventListener('click', function(e) {
 });
 
 // ================================================================
-//  12. 还款功能
+//  11. 还款功能
 // ================================================================
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
     state.repaymentSearchKeyword = keyword;
     let filtered = state.records.debt || [];
 
-    // 原逻辑：留空时只显示没有备注的记录
     if (keyword === '') {
         filtered = filtered.filter(r => !r.note || r.note.trim() === '');
     } else {
@@ -902,7 +874,6 @@ function renderRepaymentResults() {
         filtered = filtered.filter(r => r.note && r.note.toLowerCase().includes(lower));
     }
 
-    // 【关键修复】只显示未结清的债务（金额 > 0）
     filtered = filtered.filter(r => (r.amount || 0) > 0 || (r.goodsAmount || 0) > 0);
 
     if (filtered.length === 0) {
@@ -1021,7 +992,7 @@ repaymentSubmitBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  13. 更新公告
+//  12. 更新公告
 // ================================================================
 const modalOverlay = document.getElementById('updateModal');
 const oldVersionSpan = document.getElementById('oldVersion');
@@ -1047,7 +1018,7 @@ modalConfirmBtn.addEventListener('click', function() {
 });
 
 // ================================================================
-//  14. 启动 & 快捷键
+//  13. 启动 & 快捷键
 // ================================================================
 function initApp() {
     watchMembers();
@@ -1110,4 +1081,4 @@ refreshBtn.addEventListener('click', function() {
     showToast('数据已刷新');
 });
 
-console.log(`版本 ${APP_VERSION} 已启动（代码清理 + 逻辑修复）`);
+console.log(`版本 ${APP_VERSION} 已启动（模块配置合并 + 排序优化 + 时区修复）`);
