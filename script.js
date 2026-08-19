@@ -1,7 +1,7 @@
 /**
  * ================================================================
- *  家庭账本应用 - 主脚本（v0.54 优化版）
- *  优化：合并模块配置、移除重复渲染、减少排序冗余、修复时区
+ *  家庭账本应用 - 主脚本（v0.56 优化版 - 移除缓存、修复清除逻辑）
+ *  优化：移除列表/统计缓存、修复清空日期、移除多余渲染调用
  * ================================================================
  */
 
@@ -21,8 +21,6 @@ const state = {
     repaymentSearchKeyword: '',
 
     displayLimit: { income: 20, family: 20, debt: 20 },
-    _statsCache: { income: null, family: null, debt: null },
-    _lastRecordIds: { income: [], family: [], debt: [] },
     _renderScheduled: false,
     _submitting: false,  // 提交锁，防止连点
 };
@@ -220,14 +218,6 @@ function getCurrentMonthKey() {
     return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 }
 
-function areRecordIdsEqual(arr1, arr2) {
-    if (arr1.length !== arr2.length) return false;
-    for (let i = 0; i < arr1.length; i++) {
-        if (arr1[i] !== arr2[i]) return false;
-    }
-    return true;
-}
-
 // ================================================================
 //  5.  人员管理
 // ================================================================
@@ -250,8 +240,7 @@ function watchMembers() {
             }
         }
         renderPersonButtons();
-        renderAll();
-        renderRepaymentResults();
+        renderAll(); // 包含 renderRepaymentResults
     }, (err) => {
         console.error('读取 members 失败:', err);
         showToast('读取成员列表失败');
@@ -368,7 +357,7 @@ newMemberInput.addEventListener('keydown', (e) => {
 });
 
 // ================================================================
-//  6.  渲染函数
+//  6.  渲染函数（移除缓存，直接渲染）
 // ================================================================
 function renderGlobalStats(moduleKey) {
     const records = state.records[moduleKey] || [];
@@ -377,18 +366,10 @@ function renderGlobalStats(moduleKey) {
 
     if (!records || records.length === 0) {
         container.innerHTML = '';
-        state._statsCache[moduleKey] = null;
         return;
     }
 
     const currentMonthKey = getCurrentMonthKey();
-    const cacheData = state._statsCache[moduleKey];
-
-    if (cacheData && cacheData.monthKey === currentMonthKey && cacheData.recordCount === records.length) {
-        container.innerHTML = cacheData.html;
-        return;
-    }
-
     let monthRecords = [];
     records.forEach(r => {
         const dateStr = getRecordDate(r);
@@ -425,7 +406,6 @@ function renderGlobalStats(moduleKey) {
     </div>`;
 
     container.innerHTML = html;
-    state._statsCache[moduleKey] = { monthKey: currentMonthKey, recordCount: records.length, html };
 }
 
 function renderStatsGeneric(moduleKey) {
@@ -450,10 +430,6 @@ function renderStatsGeneric(moduleKey) {
     } = meta;
     const container = domMap[moduleKey].statsContainer;
 
-    const personKey_ = personKey || 'person';
-    const noteKey_ = noteKey || 'note';
-    const createdAtKey_ = createdAtKey || 'createdAt';
-
     let dayRecords = records;
     if (selectedDate && dateKey) {
         dayRecords = records.filter(r => r[dateKey] === selectedDate);
@@ -462,7 +438,7 @@ function renderStatsGeneric(moduleKey) {
     let memberHtml = '';
     const members = state.members || [];
     members.forEach(name => {
-        const pRecords = dayRecords.filter(r => r[personKey_] === name);
+        const pRecords = dayRecords.filter(r => r[personKey] === name);
         const totals = {};
         fields.forEach(f => {
             totals[f.key] = pRecords.reduce((s, r) => s + (r[f.key] || 0), 0);
@@ -478,7 +454,6 @@ function renderStatsGeneric(moduleKey) {
 
         if (showDetails && pRecords.length > 0) {
             memberHtml += `<div class="member-detail-list">`;
-            // pRecords 已经有序，直接使用
             pRecords.forEach(r => {
                 let amtHtml = '';
                 fields.forEach(f => {
@@ -486,8 +461,8 @@ function renderStatsGeneric(moduleKey) {
                     if (val > 0) amtHtml += `<span class="${f.class}">${f.label} ¥${toFixed(val)}</span>`;
                 });
                 if (!amtHtml) amtHtml = `<span>—</span>`;
-                const dateDisplay = r[dateKey] ? formatDate(r[dateKey]) : formatTime(r[createdAtKey_]);
-                const note = r[noteKey_] || '';
+                const dateDisplay = r[dateKey] ? formatDate(r[dateKey]) : formatTime(r[createdAtKey]);
+                const note = r[noteKey] || '';
                 memberHtml += `<div class="detail-item">
                     <div class="left">
                         <span class="date">${dateDisplay}</span>
@@ -523,33 +498,21 @@ function renderListGeneric(moduleKey) {
         noteKey = 'note',
     } = meta;
 
-    const personKey_ = personKey || 'person';
-    const noteKey_ = noteKey || 'note';
-    const timeKey_ = timeKey || 'createdAt';
-
     if (!records || records.length === 0) {
         container.innerHTML = `<div class="empty-state">还没有记录</div>`;
         return;
     }
 
-    // records 已经有序，直接使用
+    // 直接渲染，不使用缓存
     const limit = state.displayLimit[moduleKey] || 20;
     const showCount = Math.min(limit, records.length);
     const show = records.slice(0, showCount);
 
-    const currentIds = show.map(r => r.id);
-    const lastIds = state._lastRecordIds[moduleKey] || [];
-    if (areRecordIdsEqual(currentIds, lastIds) && show.length === lastIds.length) {
-        updateLoadMoreButton(container, records.length, showCount, moduleKey);
-        return;
-    }
-    state._lastRecordIds[moduleKey] = currentIds;
-
     let html = '';
     show.forEach((r, idx) => {
-        const name = r[personKey_];
-        const note = r[noteKey_] || '';
-        const dateDisplay = (dateKey && r[dateKey]) ? formatDate(r[dateKey]) : formatTime(r[timeKey_]);
+        const name = r[personKey];
+        const note = r[noteKey] || '';
+        const dateDisplay = (dateKey && r[dateKey]) ? formatDate(r[dateKey]) : formatTime(r[timeKey]);
         let rightHtml = '';
         fields.forEach(f => {
             const val = r[f.key] || 0;
@@ -599,29 +562,9 @@ function renderListGeneric(moduleKey) {
             const currentLimit = state.displayLimit[module] || 20;
             const newLimit = Math.min(currentLimit + 20, total);
             state.displayLimit[module] = newLimit;
-            state._lastRecordIds[module] = [];
             renderAll();
         });
     });
-}
-
-function updateLoadMoreButton(container, total, shown, moduleKey) {
-    const existingBtn = container.querySelector('.load-more-btn');
-    const existingInfo = container.querySelector('.load-all-info');
-    if (shown < total) {
-        if (existingBtn) {
-            existingBtn.textContent = `加载更多（${shown}/${total}）`;
-            existingBtn.dataset.total = total;
-        }
-    } else {
-        if (existingBtn) {
-            existingBtn.remove();
-            const info = document.createElement('div');
-            info.className = 'load-more-container';
-            info.innerHTML = `<span class="load-all-info">已显示全部 ${total} 条</span>`;
-            container.appendChild(info);
-        }
-    }
 }
 
 function renderStats(moduleKey) {
@@ -704,7 +647,7 @@ function submitRecord(moduleKey) {
 }
 
 // ================================================================
-//  8.  清除逻辑（清空所选日期）
+//  8.  清除逻辑（清空所选日期）- 使用 getRecordDate 统一日期
 // ================================================================
 function clearRecords(moduleKey) {
     const selectedDate = state.dates[moduleKey];
@@ -714,7 +657,7 @@ function clearRecords(moduleKey) {
     }
 
     const records = state.records[moduleKey] || [];
-    const toDelete = records.filter(r => r.date === selectedDate);
+    const toDelete = records.filter(r => getRecordDate(r) === selectedDate);
     if (toDelete.length === 0) {
         showToast(`${MODULE_LABELS[moduleKey]}在 ${formatDate(selectedDate)} 没有记录`);
         return;
@@ -765,8 +708,6 @@ function listenModule(moduleKey) {
         }
         state.records[stateKey] = records;
         state.displayLimit[moduleKey] = 20;
-        state._lastRecordIds[moduleKey] = [];
-        state._statsCache[moduleKey] = null;
         scheduleRender();
     }).catch(err => {
         console.error(`初始加载 ${path} 失败:`, err);
@@ -778,17 +719,12 @@ function listenModule(moduleKey) {
         const record = { id: snapshot.key, ...snapshot.val() };
         updateLocalRecords(state.records[stateKey], record, 'added');
         state.displayLimit[moduleKey] = 20;
-        state._lastRecordIds[moduleKey] = [];
-        state._statsCache[moduleKey] = null;
         scheduleRender();
-        // 移除多余的 renderRepaymentResults，由 scheduleRender 统一触发
     }, (err) => { console.error(`child_added 监听失败:`, err); });
 
     ref.on('child_changed', (snapshot) => {
         const record = { id: snapshot.key, ...snapshot.val() };
         updateLocalRecords(state.records[stateKey], record, 'changed');
-        state._lastRecordIds[moduleKey] = [];
-        state._statsCache[moduleKey] = null;
         scheduleRender();
     }, (err) => { console.error(`child_changed 监听失败:`, err); });
 
@@ -798,8 +734,6 @@ function listenModule(moduleKey) {
         const idx = records.findIndex(r => r.id === id);
         if (idx !== -1) {
             records.splice(idx, 1);
-            state._lastRecordIds[moduleKey] = [];
-            state._statsCache[moduleKey] = null;
             scheduleRender();
         }
     }, (err) => { console.error(`child_removed 监听失败:`, err); });
@@ -826,7 +760,6 @@ MODULE_KEYS.forEach(key => {
         dom.dateInput.addEventListener('change', function() {
             state.dates[key] = this.value;
             state.displayLimit[key] = 20;
-            state._lastRecordIds[key] = [];
             renderStats(key);
             renderList(key);
             if (key === 'debt') renderRepaymentResults();
@@ -1075,10 +1008,8 @@ document.addEventListener('click', function(e) {
 
 refreshBtn.addEventListener('click', function() {
     state.displayLimit = { income: 20, family: 20, debt: 20 };
-    state._lastRecordIds = { income: [], family: [], debt: [] };
-    state._statsCache = { income: null, family: null, debt: null };
     renderAll();
     showToast('数据已刷新');
 });
 
-console.log(`版本 ${APP_VERSION} 已启动（模块配置合并 + 排序优化 + 时区修复）`);
+console.log(`版本 ${APP_VERSION} 已启动（移除缓存、修复清除逻辑）`);
