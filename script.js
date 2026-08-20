@@ -1,33 +1,32 @@
 /**
- * ================================================================
- *  家庭账本 - 统一流水账模型 (v0.82)
- *  数据存入 records 表，按 type 区分：income / expense / debt
- *  income: { income, goods }  expense: { personalExpense }  
- *  debt: { amount, goodsAmount }
- *  还款直接扣减原债务记录的 amount 或 goodsAmount 字段
- * ================================================================
+ * 家庭账本 - 统一流水账模型 (v1.20)
+ * 
+ * 数据模型：
+ *   - records 表统一存储所有记录
+ *   - type: 'income' | 'expense' | 'debt'
+ *   - income: { income, goods }
+ *   - expense: { personalExpense }
+ *   - debt: { amount, goodsAmount }
  */
 
-// ================================================================
-//  1.  Firebase 全局变量（由 firebase.js 注入）
-// ================================================================
+/* ================================================================
+   1. 应用状态
+   ================================================================ */
 
-// ================================================================
-//  2.  应用状态
-// ================================================================
 const state = {
-    currentPerson: null,
-    members: [],
-    records: [],
-    dates: { income: null, expense: null, debt: null },
-    selectedDebtId: null,
-    displayLimit: { income: 20, expense: 20, debt: 20 },
-    _submitting: false,
+    currentPerson: null,      // 当前选中的成员
+    members: [],              // 所有成员列表
+    records: [],              // 所有记录（按日期倒序）
+    dates: { income: null, expense: null, debt: null }, // 各模块选中的日期
+    selectedDebtId: null,     // 还款时选中的债务记录 ID
+    displayLimit: { income: 20, expense: 20, debt: 20 }, // 各模块显示条数
+    _submitting: false,       // 防止重复提交的锁
 };
 
-// ================================================================
-//  3.  DOM 引用
-// ================================================================
+/* ================================================================
+   2. DOM 引用
+   ================================================================ */
+
 const $ = (sel) => document.querySelector(sel);
 
 const manageMemberBtn = $('#manageMemberBtn');
@@ -47,17 +46,16 @@ const dom = {
         statsContainer: $('#incomeStatsContainer'),
         recordList: $('#incomeRecordList'),
         clearBtn: $('#clearIncomeBtn'),
-        globalStats: $('#incomeGlobalStats'),
     },
     expense: {
         amt: $('#expenseAmt'),
+        goods: null, // 统一结构，支出无货款字段
         note: $('#expenseNote'),
         submit: $('#expenseSubmitBtn'),
         date: $('#expenseDate'),
         statsContainer: $('#expenseStatsContainer'),
         recordList: $('#expenseRecordList'),
         clearBtn: $('#clearExpenseBtn'),
-        globalStats: $('#expenseGlobalStats'),
     },
     debt: {
         amt: $('#debtAmt'),
@@ -68,7 +66,6 @@ const dom = {
         statsContainer: $('#debtStatsContainer'),
         recordList: $('#debtRecordList'),
         clearBtn: $('#clearDebtBtn'),
-        globalStats: $('#debtGlobalStats'),
     }
 };
 
@@ -79,49 +76,62 @@ const repaymentResults = $('#repaymentResults');
 const repaymentSubmitBtn = $('#repaymentSubmitBtn');
 const refreshBtn = $('#refreshBtn');
 
-// ================================================================
-//  4.  工具函数
-// ================================================================
+/* ================================================================
+   3. 常量定义
+   ================================================================ */
+
 const TYPE_LABELS = { income: '账本', expense: '支出', debt: '债务' };
 const DEBT_TYPE_LABELS = { amount: '欠款', goodsAmount: '货款欠款' };
 
+/* ================================================================
+   4. 工具函数
+   ================================================================ */
+
+/** 获取记录的日期（优先使用 date 字段，否则从 createdAt 提取） */
 function getRecordDate(r) {
     if (r.date) return r.date;
     const d = new Date(r.createdAt || 0);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** 按日期倒序排序，日期相同按创建时间倒序 */
 function sortByDate(records) {
-    return [...records].sort((a,b) => {
+    return [...records].sort((a, b) => {
         const da = getRecordDate(a), db = getRecordDate(b);
         if (da !== db) return db.localeCompare(da);
         return (b.createdAt || 0) - (a.createdAt || 0);
     });
 }
 
+/** 格式化日期显示：X月X日 */
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return `${d.getMonth()+1}月${d.getDate()}日`;
-}
-function formatTime(ts) {
-    const d = new Date(ts);
-    return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-}
-function toFixed(v) { return Number(v).toFixed(2); }
-function getTodayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function getMonthKey(dateStr) {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-function getCurrentMonthKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
+/** 保留两位小数 */
+function toFixed(v) { return Number(v).toFixed(2); }
+
+/** 获取今天的日期字符串 YYYY-MM-DD */
+function getTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 获取日期对应的月份键 YYYY-MM */
+function getMonthKey(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** 获取当前月份键 */
+function getCurrentMonthKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** 显示 Toast 提示 */
 function showToast(msg, duration = 2000) {
     const el = $('#toast');
     el.textContent = msg;
@@ -130,9 +140,35 @@ function showToast(msg, duration = 2000) {
     el._timer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
-// ================================================================
-//  5.  人员管理
-// ================================================================
+/** 格式化记录金额（根据类型显示不同内容） */
+function formatAmount(type, record) {
+    if (type === 'income') {
+        const inc = record.income || 0;
+        const gds = record.goods || 0;
+        let parts = [];
+        if (inc > 0) parts.push(`收入 ¥${toFixed(inc)}`);
+        if (gds > 0) parts.push(`货款 ¥${toFixed(gds)}`);
+        return parts.length ? parts.join(' ') : '¥0.00';
+    }
+    if (type === 'expense') {
+        return `¥${toFixed(record.personalExpense || 0)}`;
+    }
+    if (type === 'debt') {
+        const amt = record.amount || 0;
+        const gds = record.goodsAmount || 0;
+        let parts = [];
+        if (amt > 0) parts.push(`欠款 ¥${toFixed(amt)}`);
+        if (gds > 0) parts.push(`货款欠款 ¥${toFixed(gds)}`);
+        return parts.length ? parts.join(' ') : '¥0.00';
+    }
+    return '';
+}
+
+/* ================================================================
+   5. 成员管理
+   ================================================================ */
+
+/** 监听成员列表变化 */
 function watchMembers() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     db.ref('members').on('value', (snapshot) => {
@@ -152,6 +188,7 @@ function watchMembers() {
     }, (err) => { console.error(err); showToast('读取成员列表失败'); });
 }
 
+/** 渲染人员切换标签 */
 function renderPersonButtons() {
     const members = state.members;
     const container = document.getElementById('personChips');
@@ -177,10 +214,12 @@ function renderPersonButtons() {
     });
 }
 
+/** 打开成员管理弹窗 */
 manageMemberBtn.addEventListener('click', () => { renderMemberList(); memberModal.classList.add('active'); });
 memberModalClose.addEventListener('click', () => memberModal.classList.remove('active'));
 memberModal.addEventListener('click', (e) => { if (e.target === this) this.classList.remove('active'); });
 
+/** 渲染成员管理列表 */
 function renderMemberList() {
     const members = state.members;
     if (!members || members.length === 0) {
@@ -195,7 +234,8 @@ function renderMemberList() {
     memberList.querySelectorAll('.del-member-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const name = this.dataset.name;
-            if (!confirm(`确定删除成员“${name}”吗？\n该成员的所有记录将被永久删除！`)) return;
+            if (!confirm(`确定删除成员"${name}"吗？\n该成员的所有记录将被永久删除！`)) return;
+            // 删除 members 中的该成员
             db.ref('members').orderByValue().equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -208,6 +248,7 @@ function renderMemberList() {
                     }).catch(err => { console.error(err); showToast('删除成员失败'); });
                 }
             });
+            // 级联删除该成员的所有记录
             db.ref('records').orderByChild('person').equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -220,6 +261,7 @@ function renderMemberList() {
     });
 }
 
+/** 添加成员 */
 addMemberBtn.addEventListener('click', function() {
     const name = newMemberInput.value.trim();
     if (!name) { showToast('请输入姓名'); return; }
@@ -231,9 +273,11 @@ addMemberBtn.addEventListener('click', function() {
 });
 newMemberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addMemberBtn.click(); });
 
-// ================================================================
-//  6.  核心：统一监听 records
-// ================================================================
+/* ================================================================
+   6. 数据监听
+   ================================================================ */
+
+/** 更新本地记录列表（增量更新） */
 function updateLocalRecords(newRecord, eventType) {
     const idx = state.records.findIndex(r => r.id === newRecord.id);
     if (eventType === 'removed') {
@@ -248,6 +292,7 @@ function updateLocalRecords(newRecord, eventType) {
     state.records = sortByDate(state.records);
 }
 
+/** 监听 records 表变化 */
 function listenRecords() {
     if (!isFirebaseReady) return;
     const ref = db.ref('records');
@@ -287,46 +332,16 @@ function listenRecords() {
     }, (err) => console.error('child_removed 失败:', err));
 }
 
-// ================================================================
-//  7.  渲染函数
-// ================================================================
+/* ================================================================
+   7. 渲染函数
+   ================================================================ */
+
+/** 按类型过滤记录 */
 function getFilteredRecords(type) {
     return state.records.filter(r => r.type === type);
 }
 
-function renderGlobalStats(type) {
-    const container = dom[type].globalStats;
-    const records = getFilteredRecords(type);
-    if (!records.length) { container.innerHTML = ''; return; }
-
-    const currentMonth = getCurrentMonthKey();
-    let monthRecords = records.filter(r => getMonthKey(getRecordDate(r)) === currentMonth);
-    let monthTotal = 0, totalAll = 0;
-    let label = '';
-
-    if (type === 'income') {
-        monthTotal = monthRecords.reduce((s, r) => s + (r.income || 0) - (r.goods || 0), 0);
-        totalAll = records.reduce((s, r) => s + (r.income || 0) - (r.goods || 0), 0);
-        label = '盈利';
-    } else if (type === 'expense') {
-        monthTotal = monthRecords.reduce((s, r) => s + (r.personalExpense || 0), 0);
-        totalAll = records.reduce((s, r) => s + (r.personalExpense || 0), 0);
-        label = '总支出';
-    } else if (type === 'debt') {
-        monthTotal = monthRecords.reduce((s, r) => s + (r.amount || 0) + (r.goodsAmount || 0), 0);
-        totalAll = records.reduce((s, r) => s + (r.amount || 0) + (r.goodsAmount || 0), 0);
-        label = '总欠款';
-    }
-
-    const cls = (type === 'income') ? 'income' : (type === 'expense' ? 'cost' : 'goods');
-    container.innerHTML = `
-        <div class="global-stats">
-            <div class="stat-row"><span class="label">本月</span><span class="${cls}">${label} ¥${toFixed(monthTotal)}</span></div>
-            <div class="stat-row"><span class="label">总计</span><span class="${cls}">${label} ¥${toFixed(totalAll)}</span></div>
-        </div>
-    `;
-}
-
+/** 渲染所选日期的明细卡片 */
 function renderStats(type) {
     const container = dom[type].statsContainer;
     const selectedDate = state.dates[type];
@@ -336,7 +351,7 @@ function renderStats(type) {
         dayRecords = dayRecords.filter(r => getRecordDate(r) === selectedDate);
     }
 
-    // 计算各项总和
+    // 计算各项汇总
     let totalIncome = 0, totalGoods = 0, totalPersonalExpense = 0;
     let totalAmount = 0, totalGoodsAmount = 0;
 
@@ -353,29 +368,17 @@ function renderStats(type) {
     // 构建卡片头部
     let headerHtml = '';
     if (type === 'income') {
-        headerHtml = `
-            <div class="member-stat-header">
-                <span class="name" style="font-size:15px; font-weight:600;">
-                    收入 ¥${toFixed(totalIncome)}　货款 ¥${toFixed(totalGoods)}
-                </span>
-            </div>
-        `;
+        headerHtml = `<div class="member-stat-header">
+            <span class="name" style="font-size:15px;font-weight:600;">收入 ¥${toFixed(totalIncome)}　货款 ¥${toFixed(totalGoods)}</span>
+        </div>`;
     } else if (type === 'expense') {
-        headerHtml = `
-            <div class="member-stat-header">
-                <span class="name" style="font-size:15px; font-weight:600;">
-                    支出 ¥${toFixed(totalPersonalExpense)}
-                </span>
-            </div>
-        `;
+        headerHtml = `<div class="member-stat-header">
+            <span class="name" style="font-size:15px;font-weight:600;">支出 ¥${toFixed(totalPersonalExpense)}</span>
+        </div>`;
     } else if (type === 'debt') {
-        headerHtml = `
-            <div class="member-stat-header">
-                <span class="name" style="font-size:15px; font-weight:600;">
-                    欠款 ¥${toFixed(totalAmount)}　货款欠款 ¥${toFixed(totalGoodsAmount)}
-                </span>
-            </div>
-        `;
+        headerHtml = `<div class="member-stat-header">
+            <span class="name" style="font-size:15px;font-weight:600;">欠款 ¥${toFixed(totalAmount)}　货款欠款 ¥${toFixed(totalGoodsAmount)}</span>
+        </div>`;
     }
 
     // 构建明细列表
@@ -384,23 +387,8 @@ function renderStats(type) {
         detailHtml = `<div class="detail-empty">当天无记录</div>`;
     } else {
         dayRecords.forEach(r => {
-            let amtDisplay = '';
-            if (type === 'income') {
-                const inc = r.income || 0;
-                const gds = r.goods || 0;
-                // 明细中保持一行显示，因为空间有限
-                amtDisplay = `收入 ¥${toFixed(inc)} 货款 ¥${toFixed(gds)}`;
-            } else if (type === 'expense') {
-                amtDisplay = `¥${toFixed(r.personalExpense || 0)}`;
-            } else if (type === 'debt') {
-                const amt = r.amount || 0;
-                const gds = r.goodsAmount || 0;
-                const parts = [];
-                if (amt > 0) parts.push(`欠款 ¥${toFixed(amt)}`);
-                if (gds > 0) parts.push(`货款欠款 ¥${toFixed(gds)}`);
-                amtDisplay = parts.join(' ') || '¥0.00';
-            }
             const dateDisplay = formatDate(getRecordDate(r));
+            const amtDisplay = formatAmount(type, r);
             detailHtml += `
                 <div class="detail-item">
                     <div class="left">
@@ -419,9 +407,9 @@ function renderStats(type) {
             <div class="member-detail-list">${detailHtml}</div>
         </div>
     `;
-    renderGlobalStats(type);
 }
 
+/** 渲染全部记录列表 */
 function renderList(type) {
     const container = dom[type].recordList;
     const records = getFilteredRecords(type);
@@ -436,28 +424,9 @@ function renderList(type) {
     let html = '';
     show.forEach((r, idx) => {
         const dateDisplay = formatDate(getRecordDate(r));
-        let amtDisplay = '';
-        if (type === 'income') {
-            // ========== 修改：只显示有值的项 ==========
-            const inc = r.income || 0;
-            const gds = r.goods || 0;
-            let parts = [];
-            if (inc > 0) parts.push(`收入 ¥${toFixed(inc)}`);
-            if (gds > 0) parts.push(`货款 ¥${toFixed(gds)}`);
-            if (parts.length === 0) parts.push('¥0.00');
-            amtDisplay = parts.join(' ');
-        } else if (type === 'expense') {
-            amtDisplay = `¥${toFixed(r.personalExpense || 0)}`;
-        } else if (type === 'debt') {
-            const amt = r.amount || 0;
-            const gds = r.goodsAmount || 0;
-            const parts = [];
-            if (amt > 0) parts.push(`欠款 ¥${toFixed(amt)}`);
-            if (gds > 0) parts.push(`货款欠款 ¥${toFixed(gds)}`);
-            amtDisplay = parts.join(' ') || '¥0.00';
-        }
+        const amtDisplay = formatAmount(type, r);
         html += `
-            <div class="record-item" style="animation-delay:${idx*20}ms">
+            <div class="record-item" style="animation-delay:${idx * 20}ms">
                 <div class="left">
                     <div class="top">
                         <span class="pname">${r.person}</span>
@@ -491,9 +460,7 @@ function renderList(type) {
     });
 }
 
-// ================================================================
-//  财务总览渲染
-// ================================================================
+/** 渲染顶部财务总览 */
 function renderOverview() {
     const records = state.records;
     if (!records.length) {
@@ -504,7 +471,6 @@ function renderOverview() {
     }
 
     const currentMonth = getCurrentMonthKey();
-
     let monthIncome = 0, monthExpense = 0, monthDebt = 0;
     let totalIncome = 0, totalExpense = 0, totalDebt = 0;
 
@@ -537,9 +503,7 @@ function renderOverview() {
     document.getElementById('overviewTotalDebt').textContent = '¥' + toFixed(totalDebt);
 }
 
-// ================================================================
-//  统一渲染入口
-// ================================================================
+/** 统一渲染入口 */
 function renderAll() {
     ['income', 'expense', 'debt'].forEach(type => {
         renderStats(type);
@@ -549,6 +513,7 @@ function renderAll() {
     renderOverview();
 }
 
+/** 防抖渲染：合并短时间内的多次渲染请求 */
 let _renderScheduled = false;
 function scheduleRender() {
     if (_renderScheduled) return;
@@ -559,9 +524,11 @@ function scheduleRender() {
     });
 }
 
-// ================================================================
-//  8.  提交记录
-// ================================================================
+/* ================================================================
+   8. 记录提交
+   ================================================================ */
+
+/** 提交记录（通用） */
 function submitRecord(type) {
     if (state._submitting) return;
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
@@ -590,11 +557,12 @@ function submitRecord(type) {
         if (exp > 0) hasValue = true;
     } else if (type === 'debt') {
         const amt = parseFloat(d.amt.value) || 0;
-        record.amount = amt;
+        record.amount = 0;
         record.goodsAmount = 0;
         if (d.type.value === 'goodsAmount') {
             record.goodsAmount = amt;
-            record.amount = 0;
+        } else {
+            record.amount = amt;
         }
         if (amt > 0) hasValue = true;
     }
@@ -625,9 +593,11 @@ function submitRecord(type) {
         });
 }
 
-// ================================================================
-//  9.  删除 & 清空
-// ================================================================
+/* ================================================================
+   9. 删除 & 清空
+   ================================================================ */
+
+/** 删除单条记录（全局事件委托） */
 document.addEventListener('click', function(e) {
     const delBtn = e.target.closest('.del-btn');
     if (!delBtn) return;
@@ -640,6 +610,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
+/** 清空所选日期的所有记录 */
 function clearRecords(type) {
     const selectedDate = state.dates[type];
     if (!selectedDate) { showToast('请先选择日期'); return; }
@@ -655,18 +626,21 @@ function clearRecords(type) {
         .catch(() => showToast('清空失败，请重试'));
 }
 
-// ================================================================
-//  10. 还款功能
-// ================================================================
+/* ================================================================
+   10. 还款功能
+   ================================================================ */
+
+/** 获取某笔债务的指定类型余额 */
 function getDebtBalance(debtId, typeKey) {
     const debt = state.records.find(r => r.id === debtId && r.type === 'debt');
     if (!debt) return 0;
     return debt[typeKey] || 0;
 }
 
+/** 渲染还款搜索结果 */
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
-    let debts = state.records.filter(r => 
+    let debts = state.records.filter(r =>
         r.type === 'debt' && ((r.amount || 0) > 0 || (r.goodsAmount || 0) > 0)
     );
 
@@ -693,7 +667,7 @@ function renderRepaymentResults() {
             <div class="repayment-result-item ${isSelected ? 'selected' : ''}" data-id="${r.id}">
                 <div class="left">
                     <span class="date">${formatDate(getRecordDate(r))}</span>
-                    <span class="note" title="${r.note||''}">${r.note||'（无备注）'}</span>
+                    <span class="note" title="${r.note || ''}">${r.note || '（无备注）'}</span>
                     <span style="font-size:12px;color:#a5856a;">${r.person}</span>
                 </div>
                 <div class="right">
@@ -716,6 +690,7 @@ function renderRepaymentResults() {
     });
 }
 
+/** 点击债务记录选中/取消选中 */
 repaymentResults.addEventListener('click', function(e) {
     const item = e.target.closest('.repayment-result-item');
     if (!item) return;
@@ -723,8 +698,10 @@ repaymentResults.addEventListener('click', function(e) {
     renderRepaymentResults();
 });
 
+/** 搜索输入时刷新结果 */
 repaymentSearch.addEventListener('input', renderRepaymentResults);
 
+/** 确认还款 */
 repaymentSubmitBtn.addEventListener('click', function() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     if (!state.selectedDebtId) {
@@ -774,14 +751,17 @@ repaymentSubmitBtn.addEventListener('click', function() {
         });
 });
 
-// ================================================================
-//  11. 日期 & 事件绑定
-// ================================================================
+/* ================================================================
+   11. 事件绑定 & 初始化
+   ================================================================ */
+
+/** 为每个模块绑定日期选择、提交、清空事件 */
 ['income', 'expense', 'debt'].forEach(type => {
     const d = dom[type];
     const today = getTodayStr();
     d.date.value = today;
     state.dates[type] = today;
+
     d.date.addEventListener('change', function() {
         state.dates[type] = this.value;
         state.displayLimit[type] = 20;
@@ -794,15 +774,14 @@ repaymentSubmitBtn.addEventListener('click', function() {
     d.clearBtn.addEventListener('click', () => clearRecords(type));
 });
 
-// ================================================================
-//  12. 刷新 & 快捷键
-// ================================================================
+/** 刷新按钮：重置显示限制并重绘 */
 refreshBtn.addEventListener('click', function() {
     Object.keys(state.displayLimit).forEach(k => state.displayLimit[k] = 20);
     renderAll();
     showToast('数据已刷新');
 });
 
+/** 键盘快捷键：金额输入 Enter 跳转，备注 Enter 提交 */
 ['income', 'expense', 'debt'].forEach(type => {
     const d = dom[type];
     d.amt.addEventListener('keydown', (e) => {
@@ -825,9 +804,7 @@ repaymentAmount.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); repaymentSubmitBtn.click(); }
 });
 
-// ================================================================
-//  13. 更新公告 & 启动
-// ================================================================
+/** 更新公告弹窗 */
 const modalOverlay = document.getElementById('updateModal');
 const oldVersionSpan = document.getElementById('oldVersion');
 const newVersionSpan = document.getElementById('newVersion');
@@ -849,6 +826,7 @@ modalConfirmBtn.addEventListener('click', function() {
     modalOverlay.classList.remove('active');
 });
 
+/** 启动应用 */
 function initApp() {
     watchMembers();
     listenRecords();
