@@ -705,7 +705,7 @@ body {
     margin: 16px 0;
 }
 
-/* ========== 财务总览卡片 ========== */
+/* ========== 财务总览卡片（标题已移除，放大本月/总计） ========== */
 .overview-section {
     background: linear-gradient(135deg, #f8f4ef 0%, #f0e9e1 100%);
     border-radius: var(--radius);
@@ -713,13 +713,6 @@ body {
     margin: 16px 0 20px;
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-sm);
-}
-.overview-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--color-text-light);
-    margin-bottom: 12px;
-    letter-spacing: 0.5px;
 }
 .overview-grid {
     display: flex;
@@ -731,9 +724,9 @@ body {
     min-width: 200px;
 }
 .overview-group .group-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-muted);
+    font-size: 18px;      /* 由 13px 放大 */
+    font-weight: 700;     /* 由 600 加粗 */
+    color: var(--color-text-light);
     margin-bottom: 6px;
     border-bottom: 1px dashed var(--color-border);
     padding-bottom: 4px;

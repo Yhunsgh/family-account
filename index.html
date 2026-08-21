@@ -13,13 +13,15 @@
     <div class="person-section">
         <div class="section-label">
             <div class="person-chips" id="personChips"></div>
-            <button class="manage-btn" id="manageMemberBtn">管理成员</button>
+            <div style="display:flex; gap:8px;">
+                <button class="manage-btn" id="manageMemberBtn">管理成员</button>
+                <button class="manage-btn" id="showUpdateBtn">更新公告</button>
+            </div>
         </div>
     </div>
 
-    <!-- 财务总览卡片 -->
+    <!-- 财务总览卡片（标题已移除） -->
     <div class="overview-section" id="overviewSection">
-        <div class="overview-title">财务总览</div>
         <div class="overview-grid">
             <div class="overview-group">
                 <div class="group-label">本月</div>
@@ -246,10 +248,11 @@
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">更新公告</span>
+            <button class="modal-close" id="updateModalClose">✕</button>
         </div>
         <div class="modal-body">
             <div class="version-info">
-                版本 <span id="oldVersion"></span> → <span id="newVersion"></span>
+                当前版本 <span id="newVersion"></span>
             </div>
             <ul class="update-list" id="updateList"></ul>
         </div>

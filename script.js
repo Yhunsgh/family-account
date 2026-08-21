@@ -1,5 +1,5 @@
 /**
- * 家庭账本 - 统一流水账模型 (v1.20)
+ * 家庭账本 - 统一流水账模型 (v1.25)
  * 
  * 数据模型：
  *   - records 表统一存储所有记录
@@ -752,7 +752,37 @@ repaymentSubmitBtn.addEventListener('click', function() {
 });
 
 /* ================================================================
-   11. 事件绑定 & 初始化
+   11. 更新公告功能（主动点击弹出，简化逻辑）
+   ================================================================ */
+
+const updateModal = document.getElementById('updateModal');
+const updateModalClose = document.getElementById('updateModalClose');
+const newVersionSpan = document.getElementById('newVersion');
+const updateListEl = document.getElementById('updateList');
+const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+// 显示更新公告弹窗（只显示当前版本，不比对旧版本）
+function showUpdateModal() {
+    newVersionSpan.textContent = APP_VERSION;
+    const items = UPDATE_LOGS[APP_VERSION] || ['本次更新内容未填写'];
+    updateListEl.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+    updateModal.classList.add('active');
+}
+
+// 点击“更新公告”按钮触发
+document.getElementById('showUpdateBtn').addEventListener('click', showUpdateModal);
+
+// 关闭弹窗：点击 ✕ 或确认按钮
+updateModalClose.addEventListener('click', () => updateModal.classList.remove('active'));
+modalConfirmBtn.addEventListener('click', () => updateModal.classList.remove('active'));
+
+// 点击背景关闭弹窗
+updateModal.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+});
+
+/* ================================================================
+   12. 事件绑定 & 初始化
    ================================================================ */
 
 /** 为每个模块绑定日期选择、提交、清空事件 */
@@ -804,34 +834,12 @@ repaymentAmount.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); repaymentSubmitBtn.click(); }
 });
 
-/** 更新公告弹窗 */
-const modalOverlay = document.getElementById('updateModal');
-const oldVersionSpan = document.getElementById('oldVersion');
-const newVersionSpan = document.getElementById('newVersion');
-const updateListEl = document.getElementById('updateList');
-const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-
-function checkUpdateModal() {
-    const currentVersion = APP_VERSION;
-    let lastShownVersion = localStorage.getItem('lastShownVersion') || 'v0.0';
-    if (currentVersion === lastShownVersion) return;
-    const updateItems = UPDATE_LOGS[currentVersion] || ['本次更新内容未填写'];
-    oldVersionSpan.textContent = lastShownVersion;
-    newVersionSpan.textContent = currentVersion;
-    updateListEl.innerHTML = updateItems.map(item => `<li>${item}</li>`).join('');
-    modalOverlay.classList.add('active');
-}
-modalConfirmBtn.addEventListener('click', function() {
-    localStorage.setItem('lastShownVersion', APP_VERSION);
-    modalOverlay.classList.remove('active');
-});
-
 /** 启动应用 */
 function initApp() {
     watchMembers();
     listenRecords();
     document.getElementById('version').textContent = APP_VERSION;
-    setTimeout(checkUpdateModal, 500);
+    // 移除自动检测弹窗逻辑，不再调用 checkUpdateModal
 }
 initApp();
 console.log(`统一模型 v${APP_VERSION} 已启动`);
