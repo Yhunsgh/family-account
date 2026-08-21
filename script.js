@@ -1,5 +1,5 @@
 /**
- * 家庭账本 - 统一流水账模型 (v1.25)
+ * 家庭账本 - 统一流水账模型 (v1.35)
  * 
  * 数据模型：
  *   - records 表统一存储所有记录
@@ -17,7 +17,7 @@ const state = {
     currentPerson: null,      // 当前选中的成员
     members: [],              // 所有成员列表
     records: [],              // 所有记录（按日期倒序）
-    dates: { income: null, expense: null, debt: null }, // 各模块选中的日期
+    currentDate: null,        // 统一日期（三个模块共用）
     selectedDebtId: null,     // 还款时选中的债务记录 ID
     displayLimit: { income: 20, expense: 20, debt: 20 }, // 各模块显示条数
     _submitting: false,       // 防止重复提交的锁
@@ -36,23 +36,24 @@ const memberList = $('#memberList');
 const newMemberInput = $('#newMemberInput');
 const addMemberBtn = $('#addMemberBtn');
 
+// 顶部统一日期
+const globalDateInput = $('#globalDate');
+
 const dom = {
     income: {
         amt: $('#incomeAmt'),
         goods: $('#goodsAmt'),
         note: $('#incomeNote'),
         submit: $('#incomeSubmitBtn'),
-        date: $('#incomeDate'),
         statsContainer: $('#incomeStatsContainer'),
         recordList: $('#incomeRecordList'),
         clearBtn: $('#clearIncomeBtn'),
     },
     expense: {
         amt: $('#expenseAmt'),
-        goods: null, // 统一结构，支出无货款字段
+        goods: null,
         note: $('#expenseNote'),
         submit: $('#expenseSubmitBtn'),
-        date: $('#expenseDate'),
         statsContainer: $('#expenseStatsContainer'),
         recordList: $('#expenseRecordList'),
         clearBtn: $('#clearExpenseBtn'),
@@ -62,8 +63,7 @@ const dom = {
         type: $('#debtType'),
         note: $('#debtNote'),
         submit: $('#debtSubmitBtn'),
-        date: $('#debtDate'),
-        statsContainer: $('#debtStatsContainer'),
+        statsContainer: null, // 已删除 debt 统计容器
         recordList: $('#debtRecordList'),
         clearBtn: $('#clearDebtBtn'),
     }
@@ -74,7 +74,6 @@ const repaymentType = $('#repaymentType');
 const repaymentSearch = $('#repaymentSearch');
 const repaymentResults = $('#repaymentResults');
 const repaymentSubmitBtn = $('#repaymentSubmitBtn');
-const refreshBtn = $('#refreshBtn');
 
 /* ================================================================
    3. 常量定义
@@ -341,10 +340,12 @@ function getFilteredRecords(type) {
     return state.records.filter(r => r.type === type);
 }
 
-/** 渲染所选日期的明细卡片 */
+/** 渲染所选日期的明细卡片（仅用于 income 和 expense） */
 function renderStats(type) {
     const container = dom[type].statsContainer;
-    const selectedDate = state.dates[type];
+    if (!container) return; // 如果没有容器（如 debt），则跳过
+
+    const selectedDate = state.currentDate;
 
     let dayRecords = getFilteredRecords(type);
     if (selectedDate) {
@@ -505,10 +506,10 @@ function renderOverview() {
 
 /** 统一渲染入口 */
 function renderAll() {
-    ['income', 'expense', 'debt'].forEach(type => {
-        renderStats(type);
-        renderList(type);
-    });
+    // 只渲染 income 和 expense 的统计，debt 不再有统计卡片
+    ['income', 'expense'].forEach(type => renderStats(type));
+    // 所有类型的列表都渲染
+    ['income', 'expense', 'debt'].forEach(type => renderList(type));
     renderRepaymentResults();
     renderOverview();
 }
@@ -538,7 +539,7 @@ function submitRecord(type) {
     const d = dom[type];
     const record = {
         person,
-        date: state.dates[type] || getTodayStr(),
+        date: state.currentDate || getTodayStr(),
         type: type,
         note: d.note.value.trim() || '',
         createdAt: Date.now()
@@ -594,7 +595,7 @@ function submitRecord(type) {
 }
 
 /* ================================================================
-   9. 删除 & 清空
+   9. 删除 & 清空（清空使用统一日期）
    ================================================================ */
 
 /** 删除单条记录（全局事件委托） */
@@ -610,9 +611,9 @@ document.addEventListener('click', function(e) {
     }
 });
 
-/** 清空所选日期的所有记录 */
+/** 清空所选日期的所有记录（使用统一日期） */
 function clearRecords(type) {
-    const selectedDate = state.dates[type];
+    const selectedDate = state.currentDate;
     if (!selectedDate) { showToast('请先选择日期'); return; }
     const toDelete = state.records.filter(r => r.type === type && getRecordDate(r) === selectedDate);
     if (!toDelete.length) {
@@ -752,7 +753,7 @@ repaymentSubmitBtn.addEventListener('click', function() {
 });
 
 /* ================================================================
-   11. 更新公告功能（主动点击弹出，简化逻辑）
+   11. 更新公告功能
    ================================================================ */
 
 const updateModal = document.getElementById('updateModal');
@@ -761,7 +762,6 @@ const newVersionSpan = document.getElementById('newVersion');
 const updateListEl = document.getElementById('updateList');
 const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
-// 显示更新公告弹窗（只显示当前版本，不比对旧版本）
 function showUpdateModal() {
     newVersionSpan.textContent = APP_VERSION;
     const items = UPDATE_LOGS[APP_VERSION] || ['本次更新内容未填写'];
@@ -769,14 +769,11 @@ function showUpdateModal() {
     updateModal.classList.add('active');
 }
 
-// 点击“更新公告”按钮触发
 document.getElementById('showUpdateBtn').addEventListener('click', showUpdateModal);
 
-// 关闭弹窗：点击 ✕ 或确认按钮
 updateModalClose.addEventListener('click', () => updateModal.classList.remove('active'));
 modalConfirmBtn.addEventListener('click', () => updateModal.classList.remove('active'));
 
-// 点击背景关闭弹窗
 updateModal.addEventListener('click', function(e) {
     if (e.target === this) this.classList.remove('active');
 });
@@ -785,30 +782,22 @@ updateModal.addEventListener('click', function(e) {
    12. 事件绑定 & 初始化
    ================================================================ */
 
-/** 为每个模块绑定日期选择、提交、清空事件 */
-['income', 'expense', 'debt'].forEach(type => {
-    const d = dom[type];
-    const today = getTodayStr();
-    d.date.value = today;
-    state.dates[type] = today;
+// 统一日期变更事件
+const today = getTodayStr();
+globalDateInput.value = today;
+state.currentDate = today;
 
-    d.date.addEventListener('change', function() {
-        state.dates[type] = this.value;
-        state.displayLimit[type] = 20;
-        renderStats(type);
-        renderList(type);
-        if (type === 'debt') renderRepaymentResults();
-    });
-
-    d.submit.addEventListener('click', () => submitRecord(type));
-    d.clearBtn.addEventListener('click', () => clearRecords(type));
-});
-
-/** 刷新按钮：重置显示限制并重绘 */
-refreshBtn.addEventListener('click', function() {
+globalDateInput.addEventListener('change', function() {
+    state.currentDate = this.value;
     Object.keys(state.displayLimit).forEach(k => state.displayLimit[k] = 20);
     renderAll();
-    showToast('数据已刷新');
+});
+
+// 为各模块绑定提交和清空事件
+['income', 'expense', 'debt'].forEach(type => {
+    const d = dom[type];
+    d.submit.addEventListener('click', () => submitRecord(type));
+    d.clearBtn.addEventListener('click', () => clearRecords(type));
 });
 
 /** 键盘快捷键：金额输入 Enter 跳转，备注 Enter 提交 */
@@ -839,7 +828,6 @@ function initApp() {
     watchMembers();
     listenRecords();
     document.getElementById('version').textContent = APP_VERSION;
-    // 移除自动检测弹窗逻辑，不再调用 checkUpdateModal
 }
 initApp();
 console.log(`统一模型 v${APP_VERSION} 已启动`);
