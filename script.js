@@ -1,12 +1,12 @@
 /**
- * 家庭账本 - 统一流水账模型 (v1.35)
+ * 家庭账本 - 统一流水账模型 (v1.36)
  * 
  * 数据模型：
  *   - records 表统一存储所有记录
  *   - type: 'income' | 'expense' | 'debt'
  *   - income: { income, goods }
  *   - expense: { personalExpense }
- *   - debt: { amount, goodsAmount }
+ *   - debt: { amount }  // 统一为欠款，不再区分货款欠款
  */
 
 /* ================================================================
@@ -18,9 +18,9 @@ const state = {
     members: [],              // 所有成员列表
     records: [],              // 所有记录（按日期倒序）
     currentDate: null,        // 统一日期（三个模块共用）
-    selectedDebtId: null,     // 还款时选中的债务记录 ID
-    displayLimit: { income: 20, expense: 20, debt: 20 }, // 各模块显示条数
-    _submitting: false,       // 防止重复提交的锁
+    selectedDebtItem: null,   // 还款时选中的债务项 { id, type: 'amount' } (统一为amount)
+    displayLimit: { income: 20, expense: 20, debt: 20 },
+    _submitting: false,
 };
 
 /* ================================================================
@@ -36,7 +36,6 @@ const memberList = $('#memberList');
 const newMemberInput = $('#newMemberInput');
 const addMemberBtn = $('#addMemberBtn');
 
-// 顶部统一日期
 const globalDateInput = $('#globalDate');
 
 const dom = {
@@ -47,7 +46,6 @@ const dom = {
         submit: $('#incomeSubmitBtn'),
         statsContainer: $('#incomeStatsContainer'),
         recordList: $('#incomeRecordList'),
-        clearBtn: $('#clearIncomeBtn'),
     },
     expense: {
         amt: $('#expenseAmt'),
@@ -56,21 +54,17 @@ const dom = {
         submit: $('#expenseSubmitBtn'),
         statsContainer: $('#expenseStatsContainer'),
         recordList: $('#expenseRecordList'),
-        clearBtn: $('#clearExpenseBtn'),
     },
     debt: {
         amt: $('#debtAmt'),
-        type: $('#debtType'),
         note: $('#debtNote'),
         submit: $('#debtSubmitBtn'),
-        statsContainer: null, // 已删除 debt 统计容器
+        statsContainer: null,
         recordList: $('#debtRecordList'),
-        clearBtn: $('#clearDebtBtn'),
     }
 };
 
 const repaymentAmount = $('#repaymentAmount');
-const repaymentType = $('#repaymentType');
 const repaymentSearch = $('#repaymentSearch');
 const repaymentResults = $('#repaymentResults');
 const repaymentSubmitBtn = $('#repaymentSubmitBtn');
@@ -80,20 +74,17 @@ const repaymentSubmitBtn = $('#repaymentSubmitBtn');
    ================================================================ */
 
 const TYPE_LABELS = { income: '账本', expense: '支出', debt: '债务' };
-const DEBT_TYPE_LABELS = { amount: '欠款', goodsAmount: '货款欠款' };
 
 /* ================================================================
    4. 工具函数
    ================================================================ */
 
-/** 获取记录的日期（优先使用 date 字段，否则从 createdAt 提取） */
 function getRecordDate(r) {
     if (r.date) return r.date;
     const d = new Date(r.createdAt || 0);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 按日期倒序排序，日期相同按创建时间倒序 */
 function sortByDate(records) {
     return [...records].sort((a, b) => {
         const da = getRecordDate(a), db = getRecordDate(b);
@@ -102,35 +93,29 @@ function sortByDate(records) {
     });
 }
 
-/** 格式化日期显示：X月X日 */
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/** 保留两位小数 */
 function toFixed(v) { return Number(v).toFixed(2); }
 
-/** 获取今天的日期字符串 YYYY-MM-DD */
 function getTodayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 获取日期对应的月份键 YYYY-MM */
 function getMonthKey(dateStr) {
     const d = new Date(dateStr);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** 获取当前月份键 */
 function getCurrentMonthKey() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** 显示 Toast 提示 */
 function showToast(msg, duration = 2000) {
     const el = $('#toast');
     el.textContent = msg;
@@ -139,7 +124,6 @@ function showToast(msg, duration = 2000) {
     el._timer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
-/** 格式化记录金额（根据类型显示不同内容） */
 function formatAmount(type, record) {
     if (type === 'income') {
         const inc = record.income || 0;
@@ -153,12 +137,7 @@ function formatAmount(type, record) {
         return `¥${toFixed(record.personalExpense || 0)}`;
     }
     if (type === 'debt') {
-        const amt = record.amount || 0;
-        const gds = record.goodsAmount || 0;
-        let parts = [];
-        if (amt > 0) parts.push(`欠款 ¥${toFixed(amt)}`);
-        if (gds > 0) parts.push(`货款欠款 ¥${toFixed(gds)}`);
-        return parts.length ? parts.join(' ') : '¥0.00';
+        return `欠款 ¥${toFixed(record.amount || 0)}`;
     }
     return '';
 }
@@ -167,7 +146,6 @@ function formatAmount(type, record) {
    5. 成员管理
    ================================================================ */
 
-/** 监听成员列表变化 */
 function watchMembers() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
     db.ref('members').on('value', (snapshot) => {
@@ -187,7 +165,6 @@ function watchMembers() {
     }, (err) => { console.error(err); showToast('读取成员列表失败'); });
 }
 
-/** 渲染人员切换标签 */
 function renderPersonButtons() {
     const members = state.members;
     const container = document.getElementById('personChips');
@@ -213,12 +190,10 @@ function renderPersonButtons() {
     });
 }
 
-/** 打开成员管理弹窗 */
 manageMemberBtn.addEventListener('click', () => { renderMemberList(); memberModal.classList.add('active'); });
 memberModalClose.addEventListener('click', () => memberModal.classList.remove('active'));
-memberModal.addEventListener('click', (e) => { if (e.target === this) this.classList.remove('active'); });
+memberModal.addEventListener('click', (e) => { if (e.target === memberModal) memberModal.classList.remove('active'); });
 
-/** 渲染成员管理列表 */
 function renderMemberList() {
     const members = state.members;
     if (!members || members.length === 0) {
@@ -234,7 +209,6 @@ function renderMemberList() {
         btn.addEventListener('click', function() {
             const name = this.dataset.name;
             if (!confirm(`确定删除成员"${name}"吗？\n该成员的所有记录将被永久删除！`)) return;
-            // 删除 members 中的该成员
             db.ref('members').orderByValue().equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -247,7 +221,6 @@ function renderMemberList() {
                     }).catch(err => { console.error(err); showToast('删除成员失败'); });
                 }
             });
-            // 级联删除该成员的所有记录
             db.ref('records').orderByChild('person').equalTo(name).once('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -260,7 +233,6 @@ function renderMemberList() {
     });
 }
 
-/** 添加成员 */
 addMemberBtn.addEventListener('click', function() {
     const name = newMemberInput.value.trim();
     if (!name) { showToast('请输入姓名'); return; }
@@ -273,10 +245,109 @@ addMemberBtn.addEventListener('click', function() {
 newMemberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addMemberBtn.click(); });
 
 /* ================================================================
-   6. 数据监听
+   6. 数据迁移（将 goodsAmount 合并到 amount）
    ================================================================ */
 
-/** 更新本地记录列表（增量更新） */
+const MIGRATION_KEY = 'debt_migration_v1_done';
+
+function runDebtMigration() {
+    if (!isFirebaseReady) {
+        console.warn('Firebase 未就绪，稍后重试迁移');
+        return;
+    }
+
+    // 如果已经迁移过，跳过
+    if (localStorage.getItem(MIGRATION_KEY) === 'done') {
+        console.log('债务迁移已完成，跳过');
+        return;
+    }
+
+    console.log('开始债务数据迁移（goodsAmount → amount）...');
+    showToast('正在迁移数据...', 3000);
+
+    db.ref('records').orderByChild('type').equalTo('debt').once('value')
+        .then((snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                console.log('没有债务记录需要迁移');
+                localStorage.setItem(MIGRATION_KEY, 'done');
+                return;
+            }
+
+            const keys = Object.keys(data);
+            let total = keys.length;
+            let processed = 0;
+            let errors = [];
+
+            keys.forEach((key) => {
+                const record = data[key];
+                const updates = {};
+                let needsUpdate = false;
+
+                // 如果存在 goodsAmount，合并到 amount
+                if (record.goodsAmount !== undefined && record.goodsAmount !== null) {
+                    const goodsVal = Number(record.goodsAmount) || 0;
+                    if (goodsVal > 0) {
+                        const currentAmount = Number(record.amount) || 0;
+                        updates.amount = currentAmount + goodsVal;
+                        updates.goodsAmount = null;
+                        needsUpdate = true;
+                    } else {
+                        // goodsAmount 为 0，直接删除该字段
+                        updates.goodsAmount = null;
+                        needsUpdate = true;
+                    }
+                }
+
+                // 确保 amount 字段存在
+                if (record.amount === undefined || record.amount === null) {
+                    updates.amount = Number(record.amount) || 0;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    db.ref(`records/${key}`).update(updates)
+                        .then(() => {
+                            processed++;
+                            console.log(`迁移进度: ${processed}/${total}`);
+                        })
+                        .catch((err) => {
+                            errors.push({ key, error: err });
+                            processed++;
+                        });
+                } else {
+                    processed++;
+                }
+            });
+
+            // 等待所有更新完成
+            const checkDone = setInterval(() => {
+                if (processed >= total) {
+                    clearInterval(checkDone);
+                    if (errors.length === 0) {
+                        console.log(`✅ 债务迁移完成！共处理 ${total} 条记录`);
+                        localStorage.setItem(MIGRATION_KEY, 'done');
+                        showToast('数据迁移完成', 1500);
+                    } else {
+                        console.error(`⚠️ 迁移完成但有 ${errors.length} 条记录失败:`, errors);
+                        localStorage.setItem(MIGRATION_KEY, 'partial');
+                        localStorage.setItem('migration_errors', JSON.stringify(errors));
+                        showToast('部分记录迁移失败，请查看控制台', 3000);
+                    }
+                    renderAll();
+                }
+            }, 500);
+        })
+        .catch((err) => {
+            console.error('❌ 迁移失败:', err);
+            showToast('数据迁移失败，请刷新重试', 3000);
+        });
+}
+
+/* ================================================================
+   7. 数据监听
+   ================================================================ */
+
 function updateLocalRecords(newRecord, eventType) {
     const idx = state.records.findIndex(r => r.id === newRecord.id);
     if (eventType === 'removed') {
@@ -291,7 +362,6 @@ function updateLocalRecords(newRecord, eventType) {
     state.records = sortByDate(state.records);
 }
 
-/** 监听 records 表变化 */
 function listenRecords() {
     if (!isFirebaseReady) return;
     const ref = db.ref('records');
@@ -332,18 +402,16 @@ function listenRecords() {
 }
 
 /* ================================================================
-   7. 渲染函数
+   8. 渲染函数
    ================================================================ */
 
-/** 按类型过滤记录 */
 function getFilteredRecords(type) {
     return state.records.filter(r => r.type === type);
 }
 
-/** 渲染所选日期的明细卡片（仅用于 income 和 expense） */
 function renderStats(type) {
     const container = dom[type].statsContainer;
-    if (!container) return; // 如果没有容器（如 debt），则跳过
+    if (!container) return;
 
     const selectedDate = state.currentDate;
 
@@ -352,21 +420,15 @@ function renderStats(type) {
         dayRecords = dayRecords.filter(r => getRecordDate(r) === selectedDate);
     }
 
-    // 计算各项汇总
     let totalIncome = 0, totalGoods = 0, totalPersonalExpense = 0;
-    let totalAmount = 0, totalGoodsAmount = 0;
 
     if (type === 'income') {
         totalIncome = dayRecords.reduce((s, r) => s + (r.income || 0), 0);
         totalGoods = dayRecords.reduce((s, r) => s + (r.goods || 0), 0);
     } else if (type === 'expense') {
         totalPersonalExpense = dayRecords.reduce((s, r) => s + (r.personalExpense || 0), 0);
-    } else if (type === 'debt') {
-        totalAmount = dayRecords.reduce((s, r) => s + (r.amount || 0), 0);
-        totalGoodsAmount = dayRecords.reduce((s, r) => s + (r.goodsAmount || 0), 0);
     }
 
-    // 构建卡片头部
     let headerHtml = '';
     if (type === 'income') {
         headerHtml = `<div class="member-stat-header">
@@ -376,13 +438,8 @@ function renderStats(type) {
         headerHtml = `<div class="member-stat-header">
             <span class="name" style="font-size:15px;font-weight:600;">支出 ¥${toFixed(totalPersonalExpense)}</span>
         </div>`;
-    } else if (type === 'debt') {
-        headerHtml = `<div class="member-stat-header">
-            <span class="name" style="font-size:15px;font-weight:600;">欠款 ¥${toFixed(totalAmount)}　货款欠款 ¥${toFixed(totalGoodsAmount)}</span>
-        </div>`;
     }
 
-    // 构建明细列表
     let detailHtml = '';
     if (dayRecords.length === 0) {
         detailHtml = `<div class="detail-empty">当天无记录</div>`;
@@ -410,7 +467,6 @@ function renderStats(type) {
     `;
 }
 
-/** 渲染全部记录列表 */
 function renderList(type) {
     const container = dom[type].recordList;
     const records = getFilteredRecords(type);
@@ -461,7 +517,6 @@ function renderList(type) {
     });
 }
 
-/** 渲染顶部财务总览 */
 function renderOverview() {
     const records = state.records;
     if (!records.length) {
@@ -488,11 +543,9 @@ function renderOverview() {
             totalExpense += val;
             if (isMonth) monthExpense += val;
         } else if (r.type === 'debt') {
-            const val = (r.amount || 0) + (r.goodsAmount || 0);
-            if (val > 0) {
-                totalDebt += val;
-                if (isMonth) monthDebt += val;
-            }
+            const val = r.amount || 0;
+            totalDebt += val;
+            if (isMonth) monthDebt += val;
         }
     });
 
@@ -504,17 +557,13 @@ function renderOverview() {
     document.getElementById('overviewTotalDebt').textContent = '¥' + toFixed(totalDebt);
 }
 
-/** 统一渲染入口 */
 function renderAll() {
-    // 只渲染 income 和 expense 的统计，debt 不再有统计卡片
     ['income', 'expense'].forEach(type => renderStats(type));
-    // 所有类型的列表都渲染
     ['income', 'expense', 'debt'].forEach(type => renderList(type));
     renderRepaymentResults();
     renderOverview();
 }
 
-/** 防抖渲染：合并短时间内的多次渲染请求 */
 let _renderScheduled = false;
 function scheduleRender() {
     if (_renderScheduled) return;
@@ -526,10 +575,9 @@ function scheduleRender() {
 }
 
 /* ================================================================
-   8. 记录提交
+   9. 记录提交
    ================================================================ */
 
-/** 提交记录（通用） */
 function submitRecord(type) {
     if (state._submitting) return;
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
@@ -558,13 +606,7 @@ function submitRecord(type) {
         if (exp > 0) hasValue = true;
     } else if (type === 'debt') {
         const amt = parseFloat(d.amt.value) || 0;
-        record.amount = 0;
-        record.goodsAmount = 0;
-        if (d.type.value === 'goodsAmount') {
-            record.goodsAmount = amt;
-        } else {
-            record.amount = amt;
-        }
+        record.amount = amt;
         if (amt > 0) hasValue = true;
     }
 
@@ -595,10 +637,9 @@ function submitRecord(type) {
 }
 
 /* ================================================================
-   9. 删除 & 清空（清空使用统一日期）
+   10. 删除 & 清空（清空功能已移除）
    ================================================================ */
 
-/** 删除单条记录（全局事件委托） */
 document.addEventListener('click', function(e) {
     const delBtn = e.target.closest('.del-btn');
     if (!delBtn) return;
@@ -611,40 +652,19 @@ document.addEventListener('click', function(e) {
     }
 });
 
-/** 清空所选日期的所有记录（使用统一日期） */
-function clearRecords(type) {
-    const selectedDate = state.currentDate;
-    if (!selectedDate) { showToast('请先选择日期'); return; }
-    const toDelete = state.records.filter(r => r.type === type && getRecordDate(r) === selectedDate);
-    if (!toDelete.length) {
-        showToast(`${TYPE_LABELS[type]}在 ${formatDate(selectedDate)} 没有记录`);
-        return;
-    }
-    if (!confirm(`确定清空 ${formatDate(selectedDate)} 的所有${TYPE_LABELS[type]}记录吗？`)) return;
-    const promises = toDelete.map(r => db.ref(`records/${r.id}`).remove());
-    Promise.all(promises)
-        .then(() => showToast(`已清空 ${formatDate(selectedDate)} 的${TYPE_LABELS[type]}记录`))
-        .catch(() => showToast('清空失败，请重试'));
-}
-
 /* ================================================================
-   10. 还款功能
+   11. 还款功能（重构版）
    ================================================================ */
 
-/** 获取某笔债务的指定类型余额 */
-function getDebtBalance(debtId, typeKey) {
-    const debt = state.records.find(r => r.id === debtId && r.type === 'debt');
-    if (!debt) return 0;
-    return debt[typeKey] || 0;
-}
-
-/** 渲染还款搜索结果 */
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
+
+    // 获取所有有未结清欠款的债务记录
     let debts = state.records.filter(r =>
-        r.type === 'debt' && ((r.amount || 0) > 0 || (r.goodsAmount || 0) > 0)
+        r.type === 'debt' && (r.amount || 0) > 0
     );
 
+    // 搜索逻辑：有关键词则匹配备注，无关键词则只显示无备注的
     if (keyword !== '') {
         const lower = keyword.toLowerCase();
         debts = debts.filter(r => r.note && r.note.toLowerCase().includes(lower));
@@ -654,7 +674,7 @@ function renderRepaymentResults() {
 
     if (!debts.length) {
         repaymentResults.innerHTML = `<div class="empty-state">${keyword === '' ? '没有未结清且无备注的债务' : '未找到匹配的债务'}</div>`;
-        state.selectedDebtId = null;
+        state.selectedDebtItem = null;
         return;
     }
 
@@ -662,8 +682,7 @@ function renderRepaymentResults() {
     let html = '';
     sorted.forEach(r => {
         const amtBal = r.amount || 0;
-        const gdsBal = r.goodsAmount || 0;
-        const isSelected = state.selectedDebtId === r.id;
+        const isSelected = state.selectedDebtItem && state.selectedDebtItem.id === r.id;
         html += `
             <div class="repayment-result-item ${isSelected ? 'selected' : ''}" data-id="${r.id}">
                 <div class="left">
@@ -672,40 +691,42 @@ function renderRepaymentResults() {
                     <span style="font-size:12px;color:#a5856a;">${r.person}</span>
                 </div>
                 <div class="right">
-                    ${amtBal > 0 ? `<span class="amount">欠款 ¥${toFixed(amtBal)}</span>` : ''}
-                    ${gdsBal > 0 ? `<span class="goods">货款欠 ¥${toFixed(gdsBal)}</span>` : ''}
+                    <span class="amount">欠款 ¥${toFixed(amtBal)}</span>
                 </div>
             </div>
         `;
     });
     repaymentResults.innerHTML = html;
 
-    if (state.selectedDebtId && !sorted.some(r => r.id === state.selectedDebtId)) {
-        state.selectedDebtId = null;
+    // 如果当前选中的记录不在结果列表中，清除选中状态
+    if (state.selectedDebtItem && !sorted.some(r => r.id === state.selectedDebtItem.id)) {
+        state.selectedDebtItem = null;
     }
-    if (!state.selectedDebtId && sorted.length) {
-        state.selectedDebtId = sorted[0].id;
+    if (!state.selectedDebtItem && sorted.length) {
+        state.selectedDebtItem = { id: sorted[0].id };
     }
     document.querySelectorAll('.repayment-result-item').forEach(el => {
-        el.classList.toggle('selected', el.dataset.id === state.selectedDebtId);
+        el.classList.toggle('selected', el.dataset.id === state.selectedDebtItem?.id);
     });
 }
 
-/** 点击债务记录选中/取消选中 */
 repaymentResults.addEventListener('click', function(e) {
     const item = e.target.closest('.repayment-result-item');
     if (!item) return;
-    state.selectedDebtId = (state.selectedDebtId === item.dataset.id) ? null : item.dataset.id;
+    const id = item.dataset.id;
+    if (state.selectedDebtItem && state.selectedDebtItem.id === id) {
+        state.selectedDebtItem = null;
+    } else {
+        state.selectedDebtItem = { id };
+    }
     renderRepaymentResults();
 });
 
-/** 搜索输入时刷新结果 */
 repaymentSearch.addEventListener('input', renderRepaymentResults);
 
-/** 确认还款 */
 repaymentSubmitBtn.addEventListener('click', function() {
     if (!isFirebaseReady) { showToast('数据库未连接'); return; }
-    if (!state.selectedDebtId) {
+    if (!state.selectedDebtItem) {
         showToast('请先从搜索结果中选择一条债务记录');
         return;
     }
@@ -714,35 +735,32 @@ repaymentSubmitBtn.addEventListener('click', function() {
         showToast('请输入有效的还款金额（大于0）');
         return;
     }
-    const typeKey = repaymentType.value;
-    const typeLabel = typeKey === 'amount' ? '欠款' : '货款欠款';
 
-    const debt = state.records.find(r => r.id === state.selectedDebtId);
+    const debt = state.records.find(r => r.id === state.selectedDebtItem.id);
     if (!debt) {
         showToast('选中的债务记录不存在，请刷新');
-        state.selectedDebtId = null;
+        state.selectedDebtItem = null;
         renderRepaymentResults();
         return;
     }
 
-    const currentBalance = debt[typeKey] || 0;
+    const currentBalance = debt.amount || 0;
     if (amount > currentBalance) {
-        showToast(`还款金额不能超过${typeLabel}余额（¥${toFixed(currentBalance)}）`);
+        showToast(`还款金额不能超过欠款余额（¥${toFixed(currentBalance)}）`);
         return;
     }
-
-    const updateData = {};
-    updateData[typeKey] = currentBalance - amount;
 
     const btn = repaymentSubmitBtn;
     btn.disabled = true;
     btn.textContent = '还款中...';
 
-    db.ref(`records/${state.selectedDebtId}`).update(updateData)
+    db.ref(`records/${state.selectedDebtItem.id}`).update({
+        amount: currentBalance - amount
+    })
         .then(() => {
-            showToast(`还款成功，${typeLabel}减少 ¥${toFixed(amount)}`);
+            showToast(`还款成功，欠款减少 ¥${toFixed(amount)}`);
             repaymentAmount.value = '';
-            state.selectedDebtId = null;
+            state.selectedDebtItem = null;
             renderRepaymentResults();
         })
         .catch(err => { console.error(err); showToast('还款失败'); })
@@ -753,7 +771,7 @@ repaymentSubmitBtn.addEventListener('click', function() {
 });
 
 /* ================================================================
-   11. 更新公告功能
+   12. 更新公告功能
    ================================================================ */
 
 const updateModal = document.getElementById('updateModal');
@@ -779,10 +797,9 @@ updateModal.addEventListener('click', function(e) {
 });
 
 /* ================================================================
-   12. 事件绑定 & 初始化
+   13. 事件绑定 & 初始化
    ================================================================ */
 
-// 统一日期变更事件
 const today = getTodayStr();
 globalDateInput.value = today;
 state.currentDate = today;
@@ -793,14 +810,11 @@ globalDateInput.addEventListener('change', function() {
     renderAll();
 });
 
-// 为各模块绑定提交和清空事件
 ['income', 'expense', 'debt'].forEach(type => {
     const d = dom[type];
     d.submit.addEventListener('click', () => submitRecord(type));
-    d.clearBtn.addEventListener('click', () => clearRecords(type));
 });
 
-/** 键盘快捷键：金额输入 Enter 跳转，备注 Enter 提交 */
 ['income', 'expense', 'debt'].forEach(type => {
     const d = dom[type];
     d.amt.addEventListener('keydown', (e) => {
@@ -819,15 +833,22 @@ globalDateInput.addEventListener('change', function() {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); d.submit.click(); }
     });
 });
+
 repaymentAmount.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); repaymentSubmitBtn.click(); }
 });
 
-/** 启动应用 */
 function initApp() {
     watchMembers();
     listenRecords();
     document.getElementById('version').textContent = APP_VERSION;
+
+    // 执行数据迁移（仅首次）
+    // 延迟执行以确保 Firebase 和 records 已加载
+    setTimeout(() => {
+        runDebtMigration();
+    }, 1000);
 }
+
 initApp();
 console.log(`统一模型 v${APP_VERSION} 已启动`);

@@ -96,7 +96,6 @@
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部记录</div>
-                        <button class="clear-btn" id="clearIncomeBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="incomeRecordList"></div>
                 </div>
@@ -129,14 +128,13 @@
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部支出记录</div>
-                        <button class="clear-btn" id="clearExpenseBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="expenseRecordList"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 列3：债务（已移除“所选日期的明细”，还款模块上移） -->
+        <!-- 列3：债务 -->
         <div class="col">
             <div class="module-box">
                 <div class="module-header">
@@ -148,13 +146,6 @@
                             <label>欠款金额 (¥)</label>
                             <div class="currency"><input type="number" id="debtAmt" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" /></div>
                         </div>
-                        <div class="field">
-                            <label>欠款类型</label>
-                            <select id="debtType">
-                                <option value="amount">欠款</option>
-                                <option value="goodsAmount">货款欠款</option>
-                            </select>
-                        </div>
                     </div>
                     <div class="field">
                         <label>备注</label>
@@ -163,25 +154,21 @@
                     <button class="btn-submit" id="debtSubmitBtn">记录</button>
                 </div>
 
-                <!-- 还款模块（原在底部，现已上移至此处） -->
+                <!-- 还款模块 -->
                 <div class="repayment-section">
                     <div class="repayment-header">
                         <h3>还款</h3>
                     </div>
                     <div class="repayment-body">
                         <div class="repayment-row">
-                            <div class="field">
+                            <div class="field" style="flex:2;">
                                 <label>还款金额 (¥)</label>
                                 <div class="currency">
                                     <input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" />
                                 </div>
                             </div>
-                            <div class="field">
-                                <label>扣款类型</label>
-                                <select id="repaymentType">
-                                    <option value="amount">欠款</option>
-                                    <option value="goodsAmount">货款欠款</option>
-                                </select>
+                            <div class="field" style="flex:1; display:flex; align-items:flex-end;">
+                                <button class="btn-submit repayment-btn" id="repaymentSubmitBtn" style="width:100%; margin-top:0;">确认还款</button>
                             </div>
                         </div>
                         <div class="field">
@@ -191,22 +178,18 @@
                         <div class="repayment-results" id="repaymentResults">
                             <div class="empty-state">输入关键词搜索债务记录</div>
                         </div>
-                        <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
                     </div>
                 </div>
 
                 <div class="history-section">
                     <div class="history-header">
                         <div class="section-label">全部债务记录</div>
-                        <button class="clear-btn" id="clearDebtBtn">清空所选日期</button>
                     </div>
                     <div class="record-list" id="debtRecordList"></div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- 刷新按钮已被移除 -->
 </div>
 
 <!-- 成员管理模态框 -->
