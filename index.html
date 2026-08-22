@@ -13,12 +13,12 @@
     <div class="person-section">
         <div class="section-label">
             <div class="person-chips" id="personChips"></div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div class="person-actions">
                 <button class="manage-btn" id="manageMemberBtn">管理成员</button>
                 <button class="manage-btn" id="showUpdateBtn">更新公告</button>
-                <div class="date-picker" style="display:inline-flex; align-items:center; gap:4px; background:var(--color-border); padding:2px 12px 2px 8px; border-radius:30px; font-size:14px; color:var(--color-text-light); font-weight:500;">
+                <div class="date-picker">
                     统一日期：
-                    <input type="date" id="globalDate" style="border:none; background:transparent; font-size:14px; color:var(--color-text-light); font-weight:500; outline:none; padding:4px 0; width:120px; font-family:inherit;" />
+                    <input type="date" id="globalDate" />
                 </div>
             </div>
         </div>
@@ -161,14 +161,14 @@
                     </div>
                     <div class="repayment-body">
                         <div class="repayment-row">
-                            <div class="field" style="flex:2;">
+                            <div class="field repayment-amount-field">
                                 <label>还款金额 (¥)</label>
                                 <div class="currency">
                                     <input type="number" id="repaymentAmount" placeholder="0.00" step="0.01" min="0" onfocus="this.select()" />
                                 </div>
                             </div>
-                            <div class="field" style="flex:1; display:flex; align-items:flex-end;">
-                                <button class="btn-submit repayment-btn" id="repaymentSubmitBtn" style="width:100%; margin-top:0;">确认还款</button>
+                            <div class="field repayment-btn-field">
+                                <button class="btn-submit repayment-btn" id="repaymentSubmitBtn">确认还款</button>
                             </div>
                         </div>
                         <div class="field">
@@ -203,7 +203,7 @@
             <div class="member-list" id="memberList"></div>
             <div class="member-add">
                 <input type="text" id="newMemberInput" placeholder="输入新成员姓名" />
-                <button class="btn-submit" id="addMemberBtn" style="width:auto; padding:8px 16px; margin-top:8px;">添加</button>
+                <button class="btn-submit" id="addMemberBtn">添加</button>
             </div>
         </div>
     </div>

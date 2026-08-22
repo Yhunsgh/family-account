@@ -1,12 +1,12 @@
 /**
- * 家庭账本 - 统一流水账模型 (v1.36)
+ * 家庭账本 - 统一流水账模型 (v1.55)
  * 
  * 数据模型：
  *   - records 表统一存储所有记录
  *   - type: 'income' | 'expense' | 'debt'
  *   - income: { income, goods }
  *   - expense: { personalExpense }
- *   - debt: { amount }  // 统一为欠款，不再区分货款欠款
+ *   - debt: { amount }  // 统一为欠款
  */
 
 /* ================================================================
@@ -14,11 +14,11 @@
    ================================================================ */
 
 const state = {
-    currentPerson: null,      // 当前选中的成员
-    members: [],              // 所有成员列表
-    records: [],              // 所有记录（按日期倒序）
-    currentDate: null,        // 统一日期（三个模块共用）
-    selectedDebtItem: null,   // 还款时选中的债务项 { id, type: 'amount' } (统一为amount)
+    currentPerson: null,
+    members: [],
+    records: [],
+    currentDate: null,
+    selectedDebtItem: null,
     displayLimit: { income: 20, expense: 20, debt: 20 },
     _submitting: false,
 };
@@ -245,107 +245,7 @@ addMemberBtn.addEventListener('click', function() {
 newMemberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addMemberBtn.click(); });
 
 /* ================================================================
-   6. 数据迁移（将 goodsAmount 合并到 amount）
-   ================================================================ */
-
-const MIGRATION_KEY = 'debt_migration_v1_done';
-
-function runDebtMigration() {
-    if (!isFirebaseReady) {
-        console.warn('Firebase 未就绪，稍后重试迁移');
-        return;
-    }
-
-    // 如果已经迁移过，跳过
-    if (localStorage.getItem(MIGRATION_KEY) === 'done') {
-        console.log('债务迁移已完成，跳过');
-        return;
-    }
-
-    console.log('开始债务数据迁移（goodsAmount → amount）...');
-    showToast('正在迁移数据...', 3000);
-
-    db.ref('records').orderByChild('type').equalTo('debt').once('value')
-        .then((snapshot) => {
-            const data = snapshot.val();
-            if (!data) {
-                console.log('没有债务记录需要迁移');
-                localStorage.setItem(MIGRATION_KEY, 'done');
-                return;
-            }
-
-            const keys = Object.keys(data);
-            let total = keys.length;
-            let processed = 0;
-            let errors = [];
-
-            keys.forEach((key) => {
-                const record = data[key];
-                const updates = {};
-                let needsUpdate = false;
-
-                // 如果存在 goodsAmount，合并到 amount
-                if (record.goodsAmount !== undefined && record.goodsAmount !== null) {
-                    const goodsVal = Number(record.goodsAmount) || 0;
-                    if (goodsVal > 0) {
-                        const currentAmount = Number(record.amount) || 0;
-                        updates.amount = currentAmount + goodsVal;
-                        updates.goodsAmount = null;
-                        needsUpdate = true;
-                    } else {
-                        // goodsAmount 为 0，直接删除该字段
-                        updates.goodsAmount = null;
-                        needsUpdate = true;
-                    }
-                }
-
-                // 确保 amount 字段存在
-                if (record.amount === undefined || record.amount === null) {
-                    updates.amount = Number(record.amount) || 0;
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate) {
-                    db.ref(`records/${key}`).update(updates)
-                        .then(() => {
-                            processed++;
-                            console.log(`迁移进度: ${processed}/${total}`);
-                        })
-                        .catch((err) => {
-                            errors.push({ key, error: err });
-                            processed++;
-                        });
-                } else {
-                    processed++;
-                }
-            });
-
-            // 等待所有更新完成
-            const checkDone = setInterval(() => {
-                if (processed >= total) {
-                    clearInterval(checkDone);
-                    if (errors.length === 0) {
-                        console.log(`✅ 债务迁移完成！共处理 ${total} 条记录`);
-                        localStorage.setItem(MIGRATION_KEY, 'done');
-                        showToast('数据迁移完成', 1500);
-                    } else {
-                        console.error(`⚠️ 迁移完成但有 ${errors.length} 条记录失败:`, errors);
-                        localStorage.setItem(MIGRATION_KEY, 'partial');
-                        localStorage.setItem('migration_errors', JSON.stringify(errors));
-                        showToast('部分记录迁移失败，请查看控制台', 3000);
-                    }
-                    renderAll();
-                }
-            }, 500);
-        })
-        .catch((err) => {
-            console.error('❌ 迁移失败:', err);
-            showToast('数据迁移失败，请刷新重试', 3000);
-        });
-}
-
-/* ================================================================
-   7. 数据监听
+   6. 数据监听
    ================================================================ */
 
 function updateLocalRecords(newRecord, eventType) {
@@ -402,7 +302,7 @@ function listenRecords() {
 }
 
 /* ================================================================
-   8. 渲染函数
+   7. 渲染函数
    ================================================================ */
 
 function getFilteredRecords(type) {
@@ -575,7 +475,7 @@ function scheduleRender() {
 }
 
 /* ================================================================
-   9. 记录提交
+   8. 记录提交
    ================================================================ */
 
 function submitRecord(type) {
@@ -637,7 +537,7 @@ function submitRecord(type) {
 }
 
 /* ================================================================
-   10. 删除 & 清空（清空功能已移除）
+   9. 删除
    ================================================================ */
 
 document.addEventListener('click', function(e) {
@@ -653,18 +553,16 @@ document.addEventListener('click', function(e) {
 });
 
 /* ================================================================
-   11. 还款功能（重构版）
+   10. 还款功能
    ================================================================ */
 
 function renderRepaymentResults() {
     const keyword = repaymentSearch.value.trim();
 
-    // 获取所有有未结清欠款的债务记录
     let debts = state.records.filter(r =>
         r.type === 'debt' && (r.amount || 0) > 0
     );
 
-    // 搜索逻辑：有关键词则匹配备注，无关键词则只显示无备注的
     if (keyword !== '') {
         const lower = keyword.toLowerCase();
         debts = debts.filter(r => r.note && r.note.toLowerCase().includes(lower));
@@ -698,7 +596,6 @@ function renderRepaymentResults() {
     });
     repaymentResults.innerHTML = html;
 
-    // 如果当前选中的记录不在结果列表中，清除选中状态
     if (state.selectedDebtItem && !sorted.some(r => r.id === state.selectedDebtItem.id)) {
         state.selectedDebtItem = null;
     }
@@ -771,7 +668,7 @@ repaymentSubmitBtn.addEventListener('click', function() {
 });
 
 /* ================================================================
-   12. 更新公告功能
+   11. 更新公告功能
    ================================================================ */
 
 const updateModal = document.getElementById('updateModal');
@@ -797,7 +694,7 @@ updateModal.addEventListener('click', function(e) {
 });
 
 /* ================================================================
-   13. 事件绑定 & 初始化
+   12. 事件绑定 & 初始化
    ================================================================ */
 
 const today = getTodayStr();
@@ -842,12 +739,6 @@ function initApp() {
     watchMembers();
     listenRecords();
     document.getElementById('version').textContent = APP_VERSION;
-
-    // 执行数据迁移（仅首次）
-    // 延迟执行以确保 Firebase 和 records 已加载
-    setTimeout(() => {
-        runDebtMigration();
-    }, 1000);
 }
 
 initApp();

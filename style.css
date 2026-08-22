@@ -94,6 +94,38 @@ body {
 }
 .manage-btn:active { background: var(--color-border); }
 
+/* ========== 顶部操作栏 ========== */
+.person-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ========== 日期选择器 ========== */
+.date-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-border);
+    padding: 2px 12px 2px 8px;
+    border-radius: 30px;
+    font-size: 14px;
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+.date-picker input[type="date"] {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--color-text-light);
+    font-weight: 500;
+    outline: none;
+    padding: 4px 0;
+    width: 120px;
+    font-family: inherit;
+}
+
 /* ========== 三栏布局 ========== */
 .triple-col {
     display: flex;
@@ -222,6 +254,24 @@ body {
     flex-wrap: wrap;
 }
 .repayment-row .field { flex: 1; min-width: 80px; }
+/* 还款金额字段：占据更多空间 */
+.repayment-amount-field { flex: 2; }
+/* 确认还款按钮字段：flex容器，底部对齐 */
+.repayment-btn-field {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+}
+/* 确认还款按钮样式（覆盖 .btn-submit 的 margin-top） */
+.repayment-btn {
+    width: 100%;
+    margin-top: 0;
+    background: var(--color-primary-dark);
+    box-shadow: 0 4px 12px rgba(184,138,94,0.3);
+}
+.repayment-btn:hover { background: #a67a52; }
+.repayment-btn:active { transform: scale(0.97); }
+.repayment-btn:disabled { opacity: 0.6; }
 
 .repayment-results {
     max-height: 180px;
@@ -277,14 +327,6 @@ body {
     flex-wrap: wrap;
 }
 .repayment-result-item .right .amount { color: var(--color-cost); }
-
-.repayment-btn {
-    background: var(--color-primary-dark);
-    box-shadow: 0 4px 12px rgba(184,138,94,0.3);
-}
-.repayment-btn:hover { background: #a67a52; }
-.repayment-btn:active { transform: scale(0.97); }
-.repayment-btn:disabled { opacity: 0.6; }
 
 /* ========== 统计看板 ========== */
 .stats-section {
@@ -463,6 +505,11 @@ body {
     color: #b8a392;
     font-size: 14px;
 }
+/* 用于人员切换空状态（JS生成） */
+.empty-chip {
+    font-size: 12px;
+    color: #b8a392;
+}
 
 /* ========== Toast ========== */
 .toast {
@@ -619,6 +666,12 @@ body {
     outline: none;
 }
 .member-add input:focus { border-color: var(--color-primary); }
+/* 添加成员按钮特殊样式 */
+#addMemberBtn {
+    width: auto;
+    padding: 8px 16px;
+    margin-top: 8px;
+}
 
 /* ========== 加载更多 ========== */
 .load-more-container {
@@ -726,14 +779,14 @@ body {
         margin: 12px 0 16px;
     }
 
-    #globalDate {
+    .date-picker input[type="date"] {
         width: 100px !important;
     }
 }
 @media (max-width: 400px) {
     .person-chip { font-size: 12px; padding: 1px 8px; }
     .module-header h2 { font-size: 18px; }
-    #globalDate {
+    .date-picker input[type="date"] {
         width: 80px !important;
         font-size: 12px !important;
     }
